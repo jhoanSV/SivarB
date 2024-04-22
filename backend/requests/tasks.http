@@ -1,0 +1,116 @@
+@api = https://ltz4j7l4lh.execute-api.us-east-1.amazonaws.com/desarrollo/tasks
+//http://localhost:3000/tasks
+GET {{api}}
+
+###
+GET {{api}}/AM001
+###
+GET {{api}}/search/AM002
+
+###
+GET {{api}}/clientes/V2
+
+###
+POST {{api}}/validar
+Content-Type: application/json
+
+{
+    "Email": "alex",
+    "Contraseña": "alex2022"
+}  
+
+###
+POST {{api}}/BuscarClientes
+Content-Type: application/json
+
+{
+    "CodVendedor": "V2",
+    "busqueda": "In"
+}
+
+###
+GET {{api}}/clientes/V2
+
+###
+POST {{api}}/aTablas
+Content-Type: application/json
+
+{
+    "tabla": "tabladeingresados",
+    "cadenaDeInsercion": "('1','1','4','AM001','amarre 10 cm  2,5 mm','1300','undefined','5','V2','31/10/2022','2/11/2022','Contado','16:56:41','F','31/10/2022'),('1','1','5','CIN01','Cinta aislante 3m pequeña','1800','undefined','5','V2','31/10/2022','2/11/2022','Contado','16:56:41','F','31/10/2022')"
+}
+
+###
+POST {{api}}/con
+Content-Type: application/json
+
+{
+    "Columna": "NDePedido",
+    "Tabla": "tabladeestados"
+}
+###
+POST {{api}}/consecutivoPrefactura/6192
+
+###
+GET {{api}}/DatosProgreso/10
+
+###
+GET {{api}}/PedidosEnviados/9
+
+###
+GET {{api}}/DetallePedidoVendedor/7500
+
+###
+GET {{api}}/productsdataweb/true
+
+###
+POST  {{api}}/productsdataweb
+Content-Type: application/json
+
+{
+    "logged": false
+}
+
+###
+POST  {{api}}/login
+Content-Type: application/json
+
+{
+    "EmailUser": "pruebausuario1@gmail.com",
+    "Password": "123456789"
+}
+
+
+###
+POST  {{api}}/Changepassword
+Content-Type: application/json
+
+{
+    "CodUser": "493",
+    "Password": "123456789",
+    "NewPassword": "123456789"
+}
+
+###
+POST  {{api}}/BottonCaroucel
+Content-Type: application/json
+
+{
+    "logged": false,
+    "CodUser": "494"
+}
+
+###
+POST  {{api}}/SendSale
+Content-Type: application/json
+
+{
+    "CodCliente": "493",
+    "FechaFactura": "2024-02-20 00:00:00",
+    "FechaDeEstado": "2024-02-20 00:00:00",
+    "FechaDeEntrega": "2024-02-23",
+    "FechaVencimiento" : "2024-02-23",
+    "NotaVenta": "",
+    "VECommerce": "0",
+    "TIngresados": "12,CIT05,950;6,SP136,3500"
+}
