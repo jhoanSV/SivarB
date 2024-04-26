@@ -1,5 +1,8 @@
-@api = https://ltz4j7l4lh.execute-api.us-east-1.amazonaws.com/desarrollo/tasks
-//http://localhost:3000/tasks
+//@api = http://44.204.84.253/tasks
+//@api = http://localhost:3000/tasks
+@api = http://172.25.160.1:3000/tasks
+//http://44.204.84.253/tasks
+//@api = http://44.209.105.117:80/tasks
 GET {{api}}
 
 ###
