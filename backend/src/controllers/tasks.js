@@ -263,7 +263,7 @@ export const ProductDataWeb = async(req, res) => {
                                                 FROM
                                                     RankedResults
                                                 WHERE
-                                                    RowNum = 1
+                                                    RowNum = 1 AND Cod <> '1'
                                                 ORDER BY
                                                     Score DESC;`,[req.body.CodUser,req.body.CodUser,req.body.CodUser,req.body.CodUser,req.body.CodUser,req.body.CodUser,req.body.CodUser,req.body.CodUser,req.body.CodUser]);
           res.json(rows)
@@ -462,7 +462,7 @@ export const BottonCaroucel = async(req, res) => {
                                                   Detalle,
                                                   Score
                                                 FROM
-                                                  ranked_products
+                                                  ranked_products AND Cod <> '1'
                                                 WHERE
                                                   row_num <= 5;`,[req.body.CodUser,req.body.CodUser]);
       res.json(rows)
