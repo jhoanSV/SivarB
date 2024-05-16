@@ -211,7 +211,7 @@ export const ProductDataWeb = async(req, res) => {
                                                         JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
-                                                            sa.NDePedido <> '0' AND sa.CodCliente = ?
+                                                            sa.CodCliente = ?
                                                         GROUP BY p.Cod
                                                 
                                                         UNION ALL
@@ -246,7 +246,7 @@ export const ProductDataWeb = async(req, res) => {
                                                         JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
-                                                            sa.NDePedido <> '0' AND sa.CodCliente <> ?
+                                                            sa.CodCliente <> ?
                                                         GROUP BY p.Cod
                                                     ) AS CombinedResults
                                                 )
@@ -462,9 +462,9 @@ export const BottonCaroucel = async(req, res) => {
                                                   Detalle,
                                                   Score
                                                 FROM
-                                                  ranked_products AND Cod <> '1'
+                                                  ranked_products
                                                 WHERE
-                                                  row_num <= 5;`,[req.body.CodUser,req.body.CodUser]);
+                                                  row_num <= 5 AND Cod <> '1';`,[req.body.CodUser,req.body.CodUser]);
       res.json(rows)
       connection.end()
     }
@@ -505,7 +505,7 @@ export const BottonCaroucel = async(req, res) => {
                                             FROM
                                                 ranked_products
                                             WHERE
-                                                row_num <= 5;`);
+                                                row_num <= 5 AND Cod <> '1';`);
       res.json(rows)
       connection.end()
     }
