@@ -1,4 +1,4 @@
-import { connect } from "../database";
+import { connect, connectDBSivarPos } from "../database";
 const bcrypt = require('bcryptjs');
 
 
@@ -415,7 +415,6 @@ export const changePassword = async (req, res) => {
   };
   
 //Todo: select the first five best productos of each category
-//Todo: select the first five best productos of each category
 export const BottonCaroucel = async(req, res) => {
   /*Return list of the first five best productos of each category*/
   try {
@@ -583,3 +582,262 @@ export const SendSale = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+
+
+//to the sivar pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+export const putNewClient = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+      const [newClient] = await connection.query(`INSERT INTO clientes (IdFerreteria,
+                                                                        Tipo,
+                                                                        NitCC,
+                                                                        Nombre,
+                                                                        Apellido,
+                                                                        Telefono1,
+                                                                        Telefono2,
+                                                                        Correo,
+                                                                        Direccion,
+                                                                        Barrio,
+                                                                        FormaDePago,
+                                                                        LimiteDeCredito,
+                                                                        Nota,
+                                                                        Fecha)
+                                                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[req.body.IdFerreteria,
+                                                                                                  req.body.Tipo,
+                                                                                                  req.body.NitCC,
+                                                                                                  req.body.Nombre,
+                                                                                                  req.body.Apellido,
+                                                                                                  req.body.Telefono1,
+                                                                                                  req.body.Telefono2,
+                                                                                                  req.body.Correo,
+                                                                                                  req.body.Direccion,
+                                                                                                  req.body.Barrio,
+                                                                                                  req.body.FormaDePago,
+                                                                                                  req.body.LimiteDeCredito,
+                                                                                                  req.body.Nota,
+                                                                                                  req.body.Fecha]);
+      res.status(200).json(newClient);
+  } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+  } finally {
+    connection.end();
+  }
+};
+
+export const getClientList = async (req, res) => {
+  try {
+      const connection = await connectDBSivarPos();
+      const [clientList] = await connection.query(`SELECT
+                                              cli.Consecutivo,
+                                              cli.Tipo,
+                                              cli.NitCC,
+                                              cli.Nombre,
+                                              cli.Apellido,
+                                              cli.Telefono1,
+                                              cli.Telefono2,
+                                              cli.Correo,
+                                              cli.Direccion,
+                                              cli.Barrio,
+                                              cli.LimiteDeCredito,
+                                              cli.Nota,
+                                              cli.Fecha
+                                          FROM
+                                              clientes AS cli
+                                          WHERE
+                                              cli.IdFerreteria = ?`,[req.body.IdFerreteria])
+      res.status(200).json(clientList);
+      connection.end();
+  } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+  }
+}
+
+
+export const putNewProduct = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+      //Start the transaction
+      await connection.beginTransaction();
+
+      //First insertion to the table productos
+      const sql1 = `INSERT INTO productos (IdFerreteria,
+                                          Cod,
+                                          Descripcion,
+                                          Clase,
+                                          SubCategoria,
+                                          Detalle,
+                                          Iva) 
+                                  VALUES (?,?,?,?,?,?,?)`
+      const values1 = [req.body.IdFerreteria,
+                       req.body.Cod,
+                       req.body.Descripcion,
+                       req.body.Clase,
+                       req.body.SubCategoria,
+                       req.body.Detalle,
+                       req.body.Iva]
+      await connection.execute(sql1, values1);
+
+      //Second query of the consecutive of the new product
+      const [productRows] = await connection.query("SELECT MAX(Consecutivo) AS Consecutivo FROM productos");
+      const Consecutivo = productRows[0].Consecutivo;
+
+      //Third insertion to the table detalleproductoferreteria
+      const sql2 = `INSERT INTO detalleproductoferreteria (Consecutivo,
+                                                          IdFerreteria,
+                                                          PCosto,
+                                                          PVenta,
+                                                          InvMinimo,
+                                                          InvMaximo,
+                                                          Ubicacion)
+                                      VALUES (?,?,?,?,?,?,?)`
+      const values2 = [Consecutivo,
+                       req.body.IdFerreteria,
+                       req.body.PCosto,
+                       req.body.PVenta,
+                       req.body.InvMinimo,
+                       req.body.InvMaximo,
+                       req.body.Ubicacion]
+      await connection.execute(sql2, values2);
+
+      //Fourth insertion to the table detalleproductoferreteria
+      const sql3 = `INSERT INTO entradas (CodInterno,
+                                          IdFerreteria,		      
+                                          Cantidad,
+                                          Cod,
+                                          Descripcion,
+                                          PCosto,
+                                          PCostoLP,
+                                          Fecha,
+                                          Iva,
+                                          CodResponsable,
+                                          Responsable,
+                                          Motivo)
+                                      VALUES ((SELECT IFNULL(MAX(CodInterno)+1,0) FROM entradas WHERE IdFerreteria = '?'),?,?,?,?,?,?,?,?,?,?)`
+      const values3 = [req.body.CodInterno,
+                       req.body.IdFerreteria,		      
+                       Consecutivo,
+                       req.body.Cantidad,
+                       req.body.Cod,
+                       req.body.Descripcion,
+                       req.body.PCosto,
+                       req.body.PCostoLP,
+                       req.body.Fecha,
+                       req.body.Iva,
+                       req.body.CodResponsable,
+                       req.body.Responsable,
+                       req.body.Motivo]
+      await connection.execute(sql3, values3);
+
+      // Confirm the transaction
+      await connection.commit();
+      res.status(200).json({ message: 'Transacción completada con éxito' });
+  } catch (error) {
+      // In case of error, the transaction is returned
+      await connection.rollback();
+      console.log("este es el error del nuevo producto ", error);
+      res.status(500).json(error);
+  } finally {
+      // Close the connection
+      await connection.end();
+  }
+}
+
+export const getProductList = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+      const [productList] = await connection.query(`SELECT
+                                                        pro.Consecutivo,
+                                                        IF(pro.IdFerreteria<>'',1,0) AS deFerreteria,
+                                                        pro.Cod,
+                                                        pro.Descripcion,
+                                                        dpro.PCosto,
+                                                        dpro.PVenta,
+                                                        dpro.Ubicacion,
+                                                        dpro.InvMinimo,
+                                                        dpro.InvMaximo,
+                                                        ca.Categoria,
+                                                        subca.SubCategoria,
+                                                        pro.Clase,
+                                                        pro.Detalle
+                                                    FROM
+                                                        productos AS pro
+                                                        LEFT JOIN detalleproductoferreteria AS dpro ON pro.Consecutivo = dpro.Consecutivo
+                                                        JOIN subcategorias AS subca ON pro.SubCategoria = subca.IdSubCategoria
+                                                        JOIN categorias AS ca ON subca.IdCategoria = ca.IdCategoria
+                                                    WHERE
+                                                        pro.IdFerreteria = '' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria])
+      res.status(200).json(productList);
+      //res.status(200).json({ message: 'Consulta completada con éxito' });
+  } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
+  }
+}
+
+export const getInventory = async (req, res) => {
+  try {
+      const connection = await connectDBSivarPos();
+      const [InventoryList] = await connection.query(`SELECT
+                                                          pro.Cod,
+                                                          pro.Descripcion,
+                                                          det.PCosto,
+                                                          det.PVenta,
+                                                          SUM(en.Cantidad)-IFNULL(SUM(sa.Cantidad),0) AS Inventario,
+                                                          det.InvMinimo,
+                                                          det.InvMaximo
+                                                      FROM
+                                                          productos AS pro
+                                                      JOIN
+                                                          detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
+                                                      RIGHT JOIN
+                                                          entradas AS en ON pro.Consecutivo = en.Consecutivo
+                                                      LEFT JOIN
+                                                          salidas AS sa ON pro.Consecutivo = sa.Consecutivo
+                                                      WHERE
+                                                          en.IdFerreteria = ? AND
+                                                          sa.Consecutivo IS NOT NULL
+                                                      GROUP BY 
+                                                          pro.Consecutivo`,[req.body.IdFerreteria])
+      //res.status(200).json({ message: 'Consulta completada con éxito' });
+      res.status(200).json(InventoryList);
+      connection.end();
+  } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+  }
+}
+
+export const getPurchaseList = async (req, res) => {
+  try {
+      const connection = await connectDBSivarPos();
+      const [purchaseList] = await connection.query(`SELECT
+                                                          cc.ConInterno,
+                                                          cc.NPreFactura,
+                                                          cc.Estado,
+                                                          cc.Fecha,
+                                                          SUM(cpi.Cantidad * cpi.VrUnitarioFactura)
+                                                      FROM
+                                                          cabeceracompras AS cc
+                                                      INNER JOIN
+                                                          comprasporingresar AS cpi ON cc.NPreFactura = cpi.NPrefactura
+                                                      WHERE
+                                                          cc.IdFerreteria = ?
+                                                      GROUP BY
+                                                          cc.NPreFactura
+                                                      ORDER DESC`, [req.body.IdFerreteria]);
+      //res.status(200).json({ message: 'Consulta completada con éxito' });
+      res.status(200).json(purchaseList);
+      connection.end();
+  } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+  }
+}

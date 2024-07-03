@@ -17,8 +17,13 @@ import { getTasks,
         checkLogInData,
         changePassword,
         BottonCaroucel,
-        SendSale
-        } from '../controllers/tasks';
+        SendSale,
+        putNewClient,
+        getClientList,
+        putNewProduct,
+        getProductList,
+        getInventory,
+        getPurchaseList} from '../controllers/tasks';
 
 
 const router = Router();
@@ -103,5 +108,23 @@ router.post('/tasks/productsdataweb', ProductDataWeb)
 router.post('/tasks/BottonCaroucel', BottonCaroucel)
 
 router.post('/tasks/SendSale', SendSale)
+
+
+//to the siver pos%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// All retalet to clients
+router.post('/pos/newclient', putNewClient);
+
+router.get('/pos/clientlist', getClientList);
+
+//All about products
+router.post('/pos/newproduct', putNewProduct);
+
+router.get('/pos/productList', getProductList);
+
+router.get('/pos/inventory', getInventory);
+
+// All about purchases
+router.get('/pos/purchaseList', getPurchaseList);
+
 
 export default router

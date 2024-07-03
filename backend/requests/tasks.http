@@ -1,5 +1,5 @@
 //@api = http://50.16.92.138/tasks
-@api = http://localhost:3000/tasks
+@api = http://192.168.1.110:3000/
 //@api = http://172.25.160.1:3000/tasks
 //http://44.204.84.253/tasks
 //@api = http://44.209.105.117:80/tasks
@@ -72,7 +72,7 @@ Content-Type: application/json
 }
 
 ###
-POST  {{api}}/login
+POST  {{api}}/task/login
 Content-Type: application/json
 
 {
@@ -82,17 +82,17 @@ Content-Type: application/json
 
 
 ###
-POST  {{api}}/Changepassword
+POST  {{api}}/task/Changepassword
 Content-Type: application/json
 
 {
-    "CodUser": "493",
-    "Password": "123456789",
+    "CodUser": "242",
+    "Password": "123456",
     "NewPassword": "123456789"
 }
 
 ###
-POST  {{api}}/BottonCaroucel
+POST  {{api}}/task/BottonCaroucel
 Content-Type: application/json
 
 {
@@ -101,7 +101,7 @@ Content-Type: application/json
 }
 
 ###
-POST  {{api}}/SendSale
+POST  {{api}}task/SendSale
 Content-Type: application/json
 
 {
@@ -113,4 +113,72 @@ Content-Type: application/json
     "NotaVenta": "",
     "VECommerce": "0",
     "TIngresados": "12,CIT05,950;6,SP136,3500"
+}
+
+
+//proofs for the pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+//clients
+###
+GET {{api}}pos/clientlist
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242"
+}
+
+###
+POST {{api}}pos/newclient
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Tipo": 0,
+    "NitCC": 123456789,
+    "Nombre": "Jhoan Sebastian",
+    "Apellido": "Sierra Vargas",
+    "Telefono1": "3227804602",
+    "Telefono2": "",
+    "Correo": "correodeprueba@gmail.com",
+    "Direccion": "calle 71 sur N° 14 B-78",
+    "Barrio": "La fortaleza",
+    "FormaDePago": 0,
+    "LimiteDeCredito": 0,
+    "Nota": "Es una prueba para el cliente nuevo del pos",
+    "Fecha": "2024-07-20 13:00:00"
+}
+
+// products
+###
+POST {{api}}pos/newproduct
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Cod": "bla",
+    "Descripcion": "Producto de prueba para el pos",
+    "SubCategoria": 1,
+    "PCosto": 500,
+    "PVenta": 1000,
+    "InvMinimo": 1,
+    "InvMaximo": 5,
+    "Ubicacion": "A1",
+    "Detalle": "Es una prueba de ingreso de nuevo producto al inventario",
+    "Clase": false
+}
+
+###
+GET {{api}}pos/productList
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242"
+}
+
+###
+GET {{api}}pos/inventory
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242"
 }
