@@ -23,7 +23,16 @@ import { getTasks,
         putNewProduct,
         getProductList,
         getInventory,
-        getPurchaseList} from '../controllers/tasks';
+        getPurchaseList,
+        putNewSale,
+        getSalesPerDay,
+        postUpdateProduct,
+        postUpdateInventory,
+        putUpdateCient,
+        getSubCategories,
+        getPurchaseDetail,
+        putAddPurchase,
+        bestRoute} from '../controllers/tasks';
 
 
 const router = Router();
@@ -109,22 +118,40 @@ router.post('/tasks/BottonCaroucel', BottonCaroucel)
 
 router.post('/tasks/SendSale', SendSale)
 
+router.post('/tasks/bestroute', bestRoute)
 
 //to the siver pos%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// All retalet to clients
+//*All retalet to clients
 router.post('/pos/newclient', putNewClient);
 
-router.get('/pos/clientlist', getClientList);
+router.post('/pos/clientlist', getClientList);
 
-//All about products
+router.post('/pos/updateclient', putUpdateCient);
+
+//*All about products
 router.post('/pos/newproduct', putNewProduct);
 
-router.get('/pos/productList', getProductList);
+router.post('/pos/productList', getProductList);
 
-router.get('/pos/inventory', getInventory);
+router.post('/pos/inventory', getInventory);
 
-// All about purchases
-router.get('/pos/purchaseList', getPurchaseList);
+router.post('/pos/updateproduct', postUpdateProduct);
+
+router.post('/pos/postupdateinventory', postUpdateInventory);
+
+router.get('/pos/subcategories', getSubCategories);
+
+//* All about purchases
+router.post('/pos/purchaseList', getPurchaseList);
+
+router.post('/pos/purchasedetail', getPurchaseDetail);
+
+router.post('/pos/addpurchase', putAddPurchase);
+
+//*All about sales
+router.post('/pos/newsale', putNewSale);
+
+router.get('/pos/salesperday', getSalesPerDay);
 
 
 export default router
