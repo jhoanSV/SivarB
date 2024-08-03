@@ -924,7 +924,6 @@ export const getInventory = async (req, res) => {
   }
 }
 
-
 export const postUpdateProduct = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
@@ -1210,6 +1209,7 @@ export const getPurchaseList = async (req, res) => {
   try {
       const connection = await connectDBSivarPos();
       const [purchaseList] = await connection.query(`SELECT
+                                                      cc.Consecutivo,                                              
                                                       cc.ConInterno,
                                                       cc.NPreFactura,
                                                       cc.Estado,
@@ -1236,21 +1236,67 @@ export const getPurchaseList = async (req, res) => {
 export const getPurchaseDetail = async (req, res) => {
   try {
       const connection = await connectDBSivarPos();
-      const [purchaseDetail] = await connection.query(`SELECT
-                                                        cpi.Cantidad,
-                                                        cpi.Cod,
-                                                        pro.Descripcion,
-                                                        cpi.VrUnitarioFactura,
-                                                        dpro.PCosto,
-                                                        COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
-                                                        cpi.verificado
-                                                      FROM
-                                                        comprasporingresar AS cpi
-                                                      LEFT JOIN
-                                                        productos AS pro ON cpi.Cod = pro.Cod
-                                                      LEFT JOIN
-                                                        detalleproductoferreteria AS dpro ON dpro.Consecutivo = pro.Consecutivo AND dpro.IdFerreteria = cpi.IdFerreteria
-                                                      LEFT JOIN (
+      if (req.body.Estado === 'Por ingresar') {
+        const [purchaseDetail] = await connection.query(`SELECT
+                                                          cpi.Cantidad,
+                                                          pro.Consecutivo AS ConsecutivoProd,
+                                                          cpi.Cod,
+                                                          pro.Descripcion,
+                                                          cpi.VrUnitarioFactura AS PCosto,
+                                                          dpro.PCosto AS PCostoLP,
+                                                          dpro.PVenta,
+                                                          pro.Iva,
+                                                          COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
+                                                          cpi.Verificado,
+                                                          dpro.InvMinimo,
+                                                          dpro.InvMaximo
+                                                        FROM
+                                                          comprasporingresar AS cpi
+                                                        LEFT JOIN
+                                                          productos AS pro ON cpi.Cod = pro.Cod
+                                                        LEFT JOIN
+                                                          detalleproductoferreteria AS dpro ON dpro.Consecutivo = pro.Consecutivo AND dpro.IdFerreteria = cpi.IdFerreteria
+                                                        LEFT JOIN (
+                                                              SELECT 
+                                                            ConsecutivoProd,
+                                                            SUM(Cantidad) AS entradas 
+                                                              FROM 
+                                                            entradas 
+                                                              GROUP BY 
+                                                            ConsecutivoProd
+                                                          ) AS en ON pro.Consecutivo = en.ConsecutivoProd
+                                                          LEFT JOIN (
+                                                              SELECT 
+                                                            ConsecutivoProd, 
+                                                            SUM(Cantidad) AS salidas 
+                                                              FROM 
+                                                            salidas 
+                                                              GROUP BY 
+                                                            ConsecutivoProd
+                                                          ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
+                                                        WHERE
+                                                          cpi.NPrefactura = ? AND cpi.IdFerreteria = ?`, [req.body.NPreFactura ,req.body.IdFerreteria]);
+        res.status(200).json(purchaseDetail);
+      } else if (req.body.Estado === 'Recibido') {
+        const [purchaseDetail] = await connection.query(`SELECT
+                                                          en.Cantidad,
+                                                          en.ConsecutivoProd,
+                                                          en.Cod,
+                                                          en.Descripcion,
+                                                          en.PCosto,
+                                                          en.PCostoLP,
+                                                          dpro.PVenta,
+                                                          en.Iva,
+                                                          COALESCE(ent.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
+                                                          dpro.InvMinimo,
+                                                          dpro.InvMaximo
+                                                        FROM
+                                                          entradas AS en
+                                                        LEFT JOIN
+                                                          productos AS pro ON en.Cod = pro.Cod
+                                                        LEFT JOIN
+                                                          detalleproductoferreteria AS dpro ON dpro.Consecutivo = pro.Consecutivo AND dpro.IdFerreteria = en.IdFerreteria
+                                                        LEFT JOIN (
                                                             SELECT 
                                                           ConsecutivoProd,
                                                           SUM(Cantidad) AS entradas 
@@ -1258,7 +1304,7 @@ export const getPurchaseDetail = async (req, res) => {
                                                           entradas 
                                                             GROUP BY 
                                                           ConsecutivoProd
-                                                        ) AS en ON pro.Consecutivo = en.ConsecutivoProd
+                                                        ) AS ent ON pro.Consecutivo = ent.ConsecutivoProd
                                                         LEFT JOIN (
                                                             SELECT 
                                                           ConsecutivoProd, 
@@ -1268,9 +1314,10 @@ export const getPurchaseDetail = async (req, res) => {
                                                             GROUP BY 
                                                           ConsecutivoProd
                                                         ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
-                                                      WHERE
-                                                        cpi.NPrefactura = ? AND cpi.IdFerreteria = ?`, [req.body.NPrefactura ,req.body.IdFerreteria]);
-      res.status(200).json(purchaseDetail);
+                                                        WHERE
+                                                        en.ConsecutivoCompra = ? AND en.IdFerreteria = ?`, [req.body.Consecutivo, req.body.IdFerreteria]);
+        res.status(200).json(purchaseDetail);
+      }
       connection.end();
   } catch (error) {
       console.log(error);
@@ -1278,148 +1325,107 @@ export const getPurchaseDetail = async (req, res) => {
   }
 }
 
-/*export const putAddPurchase = async (req, res) => {
-  const connection = await connectDBSivarPos();
-  try {
-    const sql1 = `INSERT INTO entradas (CodInterno,
-                                          IdFerreteria,
-                                          ConsecutivoProd,		      
-                                          Cantidad,
-                                          Cod,
-                                          Descripcion,
-                                          PCosto,
-                                          PCostoLP,
-                                          Fecha,
-                                          Iva,
-                                          CodResponsable,
-                                          Responsable,
-                                          Motivo,
-                                          ConsecutivoCompra)
-                                      VALUES (?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?)`
-    for (const entry of req.body.Order) {
-      const [DetalleProductoPorFerreteria] = await connection.query(`SELECT
-                                                                      Consecutivo
-                                                                    FROM
-                                                                      detalleproductoferreteria
-                                                                    WHERE
-                                                                      Consecutivo = ? AND IdFerreteria = ?`, [req.body.Consecutivo, req.body.IdFerreteria])
-      if (DetalleProductoPorFerreteria.length > 0) {
-        const sql2 = `UPDATE
-                        detalleproductoferreteria
-                      SET
-                        PCosto =?,
-                        PVenta =?,
-                        Ubicacion =?,
-                        InvMinimo =?,
-                        InvMaximo =?,
-                        Medida =?,
-                        UMedida =?,
-                        PrecioUM =?
-                      WHERE
-                        Consecutivo = ?`
-      const values2 = [req.body.PCosto,
-                       req.body.PVenta,
-                       req.body.Ubicacion,
-                       req.body.InvMinimo,
-                       req.body.InvMaximo,
-                       req.body.Medida,
-                       req.body.UMedida,
-                       req.body.PrecioUM,
-                       req.body.ConsecutivoProd]
-      await connection.execute(sql2, values2);
-      } else {
-        const values1 = [
-          "000",
-          req.body.IdFerreteria,		      
-          req.body.ConsecutivoProd,
-          entry.Cantidad,
-          entry.Cod,
-          entry.Descripcion,
-          entry.PCosto,
-          entry.PCostoLP,
-          req.body.Fecha,
-          entry.Iva,
-          req.body.CodResponsable,
-          req.body.Responsable,
-          req.body.Motivo,
-          req.body.ConsecutivoCompra
-        ];
-        await connection.execute(sql1, values1);
-      }
-    }
-
-
-    const [purchaseList] = await connection.query(`SELECT
-                                                        cc.ConInterno,
-                                                        cc.NPreFactura,
-                                                        cc.Estado,
-                                                        cc.Fecha,
-                                                        SUM(cpi.Cantidad * cpi.VrUnitarioFactura)
-                                                    FROM
-                                                        cabeceracompras AS cc
-                                                    INNER JOIN
-                                                        comprasporingresar AS cpi ON cc.NPreFactura = cpi.NPrefactura
-                                                    WHERE
-                                                        cc.IdFerreteria = ?
-                                                    GROUP BY
-                                                        cc.NPreFactura
-                                                    ORDER DESC`, [req.body.IdFerreteria]);
-    res.status(200).json(purchaseList);
-    connection.end();
-  } catch (error) {
-      console.log(error);
-      res.status(500).json(error);
-  }
-}*/
-
 export const putAddPurchase = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
     await connection.beginTransaction();
     const insertEntradasQuery = `INSERT INTO entradas (CodInterno,
-                                          IdFerreteria,
-                                          ConsecutivoProd,		      
-                                          Cantidad,
-                                          Cod,
-                                          Descripcion,
-                                          PCosto,
-                                          PCostoLP,
-                                          Fecha,
-                                          Iva,
-                                          CodResponsable,
-                                          Responsable,
-                                          Motivo,
-                                          ConsecutivoCompra)
-                                      VALUES (?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?,
-                                              ?)`
+                                                        IdFerreteria,
+                                                        ConsecutivoProd,		      
+                                                        Cantidad,
+                                                        Cod,
+                                                        Descripcion,
+                                                        PCosto,
+                                                        PCostoLP,
+                                                        Fecha,
+                                                        Iva,
+                                                        CodResponsable,
+                                                        Responsable,
+                                                        Motivo,
+                                                        ConsecutivoCompra)
+                                                      VALUES (?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?,
+                                                              ?)`
+    const updateDetalleQuery = `UPDATE
+                                  detalleproductoferreteria
+                                SET
+                                  PCosto =?,
+                                  PVenta =?
+                                WHERE
+                                  Consecutivo = ? AND IdFerreteria = ?`
+    for (const entry of req.body.Order) {
+        const valuesUpdate = [entry.PCosto,
+                              entry.PVenta,
+                              entry.ConsecutivoProd,
+                              req.body.IdFerreteria]
+        await connection.execute(updateDetalleQuery, valuesUpdate);
+      const valuesInsert = ["000",
+                            req.body.IdFerreteria,		      
+                            entry.ConsecutivoProd,
+                            entry.Cantidad,
+                            entry.Cod,
+                            entry.Descripcion,
+                            entry.PCosto,
+                            entry.PCostoLP,
+                            req.body.Fecha,
+                            entry.Iva,
+                            req.body.CodResponsable,
+                            req.body.Responsable,
+                            "Compra",
+                            req.body.Consecutivo
+                          ]
+      await connection.execute(insertEntradasQuery, valuesInsert);
+    }
+
+    const updateComprasPorIngresar = `UPDATE
+                                        cabeceracompras
+                                      SET
+                                        Estado = 'Recibido'
+                                      WHERE
+                                        Consecutivo = ? AND IdFerreteria = ?`
+    const valuesComprasPorIngresar = [ req.body.Consecutivo, req.body.IdFerreteria]
+    await connection.execute(updateComprasPorIngresar, valuesComprasPorIngresar)
+
+    const deleteComprasPorIngresar = `DELETE FROM
+                                        comprasporingresar
+                                      WHERE
+                                        NPrefactura = ?`
+    const deleteValuesComprasPorIngresar = [ req.body.Consecutivo, req.body.IdFerreteria]
+
+
+    await connection.execute(deleteComprasPorIngresar, deleteValuesComprasPorIngresar)
+    // Confirm the transaction
+    await connection.commit();
+    res.status(200).json({ message: 'Transacción completada con éxito' });
+  } catch (error) {
+    await connection.rollback();
+    console.log("este es el error de la compra nueva ", error);
+    res.status(500).json(error);
+  } finally {
+      // Close the connection
+      await connection.end();
+  }
+}
+
+export const putModifyPurchaseProduct = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+    await connection.beginTransaction();
     const insertDetalleQuery  = `INSERT INTO 
                                   detalleproductoferreteria
-                                ( IdFerreteria,
+                                ( Consecutivo,
+                                  IdFerreteria,
                                   PCosto,
                                   PVenta,
                                   InvMinimo,
@@ -1436,55 +1442,88 @@ export const putAddPurchase = async (req, res) => {
                                         ?,
                                         ?,
                                         ?,
+                                        ?,
                                         ?)`
     const updateDetalleQuery = `UPDATE
                                   detalleproductoferreteria
                                 SET
                                   PCosto =?,
-                                  PVenta =?`
-    for (const entry of req.body.Order) {
-      const [DetalleProductoPorFerreteria] = await connection.query(`SELECT
-                                                                      Consecutivo
-                                                                    FROM
-                                                                      detalleproductoferreteria
-                                                                    WHERE
-                                                                      Consecutivo = ? AND IdFerreteria = ?`, [req.body.Consecutivo, req.body.IdFerreteria])
-      if (DetalleProductoPorFerreteria.length > 0) {
-        const valuesUpdate = [req.body.PCosto,
-                              req.body.PVenta,
-                              req.body.ConsecutivoProd]
-        await connection.execute(updateDetalleQuery, valuesUpdate);
-      } else {
-        const valuesInsert = [
-          "000",
-          req.body.IdFerreteria,		      
-          req.body.ConsecutivoProd,
-          entry.Cantidad,
-          entry.Cod,
-          entry.Descripcion,
-          entry.PCosto,
-          entry.PCostoLP,
-          req.body.Fecha,
-          entry.Iva,
-          req.body.CodResponsable,
-          req.body.Responsable,
-          req.body.Motivo,
-          req.body.ConsecutivoCompra
-        ]
-        await connection.execute(insertDetalleQuery, valuesInsert)
-      }
-      await connection.execute(insertEntradasQuery, valuesInsert);
+                                  PVenta =?
+                                WHERE
+                                  Consecutivo = ? AND IdFerreteria = ?`
+    const [DetalleProductoPorFerreteria] = await connection.query(`SELECT
+                                                                    Consecutivo
+                                                                  FROM
+                                                                    detalleproductoferreteria
+                                                                  WHERE
+                                                                    Consecutivo = ? AND IdFerreteria = ?`, [req.body.ConsecutivoProd, req.body.IdFerreteria])
+    const verificarCheck = `UPDATE
+                              comprasporingresar
+                            SET
+                              verificado = 1
+                            WHERE
+                              IdFerreteria = ? AND NPrefactura = ? AND cod = ?`
+    const valuesCheck = [req.body.IdFerreteria, req.body.NPreFactura, req.body.Cod]
+    await connection.execute(verificarCheck, valuesCheck);
+
+    if (DetalleProductoPorFerreteria.length > 0) {
+      const valuesUpdate = [req.body.PCosto,
+                            req.body.PVenta,
+                            req.body.ConsecutivoProd,
+                            req.body.IdFerreteria]
+      await connection.execute(updateDetalleQuery, valuesUpdate);
+
+    } else {
+      const valuesInsert = [
+        req.body.ConsecutivoProd,
+        req.body.IdFerreteria,
+        req.body.PCosto,
+        req.body.PVenta,
+        1,
+        1,
+        "",
+        "",
+        1,
+        0
+      ]
+      await connection.execute(insertDetalleQuery, valuesInsert)
     }
     // Confirm the transaction
     await connection.commit();
     res.status(200).json({ message: 'Transacción completada con éxito' });
   } catch (error) {
     await connection.rollback();
-    console.log("este es el error de la compra nueva ", error);
+    console.log("este es el error", error);
     res.status(500).json(error);
   } finally {
       // Close the connection
       await connection.end();
+  }
+}
+
+export const putUpdateVefied = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+      const sql1 = `UPDATE
+                      comprasporingresar
+                    SET
+                      verificado = ?
+                    WHERE
+                      IdFerreteria = ? AND NPrefactura = ? AND cod = ?`
+      const values = [req.body.Verificado,
+                      req.body.IdFerreteria,
+                      req.body.NPreFactura,
+                      req.body.Cod];
+      
+      await connection.execute(sql1, values)
+      res.status(200).json({ message: 'Transacción completada con éxito' });
+      connection.end();
+  } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
   }
 }
 
@@ -1611,77 +1650,6 @@ export const getSalesPerDay = async (req, res) => {
     await connection.end();
 }
 }
-
-
-/*export const bestRoute = async(req, res) => {
-  const connection = await connect();
-  try {
-    let puntoDeOrigen = [4.609979,-74.140089]
-    let route = [];
-    let clientes = [];
-    const [routeslist] = await connection.query(`SELECT
-                                                    cli.Cod,
-                                                    cli.Ferreteria,
-                                                    cli.Geolocalizacion,
-                                                    SUBSTRING_INDEX(cli.Geolocalizacion, ',', 1) AS Latitude,
-	                                                  SUBSTRING_INDEX(cli.Geolocalizacion, ',', -1) AS Longitude
-                                                  FROM
-                                                    clientes AS cli
-                                                  RIGHT JOIN
-                                                    tabladeestados AS tde ON cli.Cod = tde.CodCliente
-                                                  WHERE
-                                                    tde.ProcesoDelPedido = 'En ruta' AND tde.Repartidor = ?
-                                                  GROUP BY
-	                                                  cli.Ferreteria`, [req.body.usuario]);
-    routeslist.unshift({"Cod": 0, "Ferreteria": "Comercilizadora sivar", "Geolocalizacion": "4.609979,-74.140089", "Latitude": 4.609979, "Longitude": -74.140089});
-    console.log(routeslist)
-    let isFirstIteration = true; // Flag to identify the first iteration
-    while (routeslist.length > 0) {
-      let distanciaMinima = Infinity
-      let posicion = 0;
-      for (let i = 0; i < routeslist.length; i++) {
-        if (i === posicion) {
-          continue; // Skip the current iteration if i is equal to posicion
-        }
-        let distancia = Math.sqrt((puntoDeOrigen[0]-routeslist[i].Latitude)**2 + (puntoDeOrigen[1]-routeslist[i].Longitude)**2)
-        if (distancia < distanciaMinima) {
-          distanciaMinima = distancia
-          posicion = i
-          console.log(distancia)
-        }
-      }
-      // Remove the first entry after the first iteration
-      if (isFirstIteration) {
-        routeslist.shift(); // Remove the starting point from routeslist
-        isFirstIteration = false; // Set the flag to false after the first iteration
-      }
-      puntoDeOrigen = [routeslist[posicion].Latitude, routeslist[posicion].Longitude]
-      //console.log("puntoDeOrigen ", puntoDeOrigen)
-      route.push([routeslist[posicion].Geolocalizacion])
-      clientes.push(routeslist[posicion]);
-      routeslist.splice(posicion, 1);
-    }
-
-
-    // Construct Google Maps Directions URL
-    let origin = "4.609979,-74.140089"; // Remove and get the first element as origin
-    let destination = route.pop(); // Remove and get the last element as destination
-    let waypoints = route.join('|'); // Join the remaining elements as waypoints
-
-    let googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}`;
-
-
-    console.log("route: ", route)
-    res.status(200).json(clientes);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json(error);
-  } finally {
-    // Close the connection
-    await connection.end();
-  }
-}*/
-
 
 export const bestRoute = async (req, res) => {
   const connection = await connect();

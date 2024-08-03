@@ -14,7 +14,7 @@ GET {{api}}/search/AM002
 GET {{api}}/clientes/V2
 
 ###
-POST {{api}}/validar
+POST {{api}}tasks/validar
 Content-Type: application/json
 
 {
@@ -58,7 +58,7 @@ POST {{api}}/consecutivoPrefactura/6192
 GET {{api}}/DatosProgreso/10
 
 ### usar este para la prueba
-GET {{api}}/PedidosEnviados/9
+GET {{api}}tasks/PedidosEnviados/9
 
 ###
 GET {{api}}/DetallePedidoVendedor/7500
@@ -203,7 +203,7 @@ Content-Type: application/json
 }
 
 ###
-GET {{api}}pos/inventory
+POST {{api}}pos/inventory
 Content-Type: application/json
 
 {
@@ -216,11 +216,14 @@ Content-Type: application/json
 
 {
     "IdFerreteria": "242",
-    "Cod": "bla4",
-    "Descripcion": "Cuarto producto de prueba para el pos",
-    "SubCategoria": 2,
+    "Cod": "pruno",
+    "Descripcion": "producto de sivar",
+    "IdSubCategoria": 2,
     "PCosto": 800,
     "PVenta": 1200,
+    "PrecioUM": 10000,
+    "UMedida": 10,
+    "Medida": "Metros",
     "InvMinimo": 1,
     "InvMaximo": 5,
     "Ubicacion": "A1",
@@ -326,7 +329,6 @@ Content-Type: application/json
     "IdFerreteria": 242
 }
 
-
 ###
 POST {{api}}pos/purchasedetail
 Content-Type: application/json
@@ -341,14 +343,66 @@ POST {{api}}pos/addpurchase
 Content-Type: application/json
 
 {
-    "ConsecutivoFactura": "242",
+    "Consecutivo": 2,
     "IdFerreteria": 242,
     "Fecha": "2024-04-07 11:49:35",
-    "ConsecutivoCompra": 1,
     "Order": {[
         {
-
+            "Cantidad": 5,
+            "Consecutivoprod": "",
+            "Cod": "bla",
+            "Descripcion": "Producto de prueba para el pos2",
+            "VrUnitarioFactura": 400,
+            "PCosto": 500,
+            "Inventario": "250",
+            "verificado": 0
+        },
+        {
+            "Cantidad": 10,
+            "Consecutivoprod": "",
+            "Cod": "bLA2",
+            "Descripcion": "Segundo producto de prueba para el pos",
+            "VrUnitarioFactura": 800,
+            "PCosto": 800,
+            "Inventario": "75",
+            "verificado": 0
         }
     ]}
 }
 
+###
+POST {{api}}pos/updatevefied
+Content-Type: application/json
+
+{
+    "Verificado": true,
+    "IdFerreteria": 242,
+    "NPreFactura": 10725,
+    "Cod" : "bla"
+}
+
+
+###
+POST {{api}}tasks/bestroute
+Content-Type: application/json
+
+{
+    "usuario": 5
+}
+
+###
+POST {{api}}pos/modifypurchaseproduct
+Content-Type: application/json
+
+{
+    "Consecutivo": 8,
+    "IdFerreteria": 242,
+    "PCosto": 1800.00,
+    "PVenta": 2000.00,
+    "InvMinimo": 1,
+    "InvMaximo": 1,
+    "Ubicacion": "",
+    "Medida": "",
+    "UMedida": 0,
+    "PrecioUM": 0
+}
