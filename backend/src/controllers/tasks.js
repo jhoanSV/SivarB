@@ -842,7 +842,7 @@ export const getProductList = async (req, res) => {
                                                     CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario,
                                                     IFNULL(dpro.Medida, '') AS Medida,
                                                     IFNULL(dpro.UMedida, 0) AS UMedida,
-                                                    IFNULL(dpro.PrecioUM, 0) AS PrecioUM
+                                                    IFNULL(dpro.PrecioUM, 0) AS PVentaUM
                                                   FROM
                                                     productos AS pro
                                                     LEFT JOIN detalleproductoferreteria AS dpro ON pro.Consecutivo = dpro.Consecutivo
@@ -889,6 +889,8 @@ export const getInventory = async (req, res) => {
                                                         COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
                                                         det.PCosto,
                                                         det.PVenta,
+                                                        det.PrecioUM as PVentaUM,
+                                                        det.Medida,
                                                         det.InvMinimo,
                                                         det.InvMaximo
                                                     FROM
