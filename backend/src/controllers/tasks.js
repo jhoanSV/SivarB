@@ -952,7 +952,7 @@ export const postUpdateProduct = async (req, res) => {
       req.body.ConsecutivoProd
     ];
     await connection.execute(updateProductSql, productValues);
-
+    console.log(product)
     const [queryCantidad] = await connection.query(`
       SELECT
         Consecutivo
@@ -1046,7 +1046,6 @@ export const postUpdateInventory = async(req, res) => {
                         productos AS pro
                       WHERE
                         pro.Consecutivo = ?`, [req.body.ConsecutivoProd]),
-    
     //Fourth query of the consecutive of the new product in entradas but the inner consecutive
       connection.query(`SELECT
                           IFNULL(en.entradas, 0) - IFNULL(sa.salidas, 0) AS Cantidad
@@ -1076,15 +1075,14 @@ export const postUpdateInventory = async(req, res) => {
                                                                     req.body.IdFerreteria]
       )
     ]);
-    
+    console.log([req.body.ConsecutivoProd,
+                  req.body.IdFerreteria,
+                  req.body.ConsecutivoProd,
+                  req.body.IdFerreteria])
     const cantidadactual = parseFloat(queryCantidad[0].Cantidad);
     value = Math.abs(cantidadactual-req.body.Cantidad)
     const difference = req.body.Cantidad - cantidadactual
-    
-    console.log("Cantidad actual ", cantidadactual);
-    console.log("Cantidad", req.body.Cantidad);
-    console.log("value ", value);
-    //
+    console.log("product data: " + JSON.stringify(productData[0]))
     if (difference > 0) {
       const sql1 = `INSERT INTO entradas (CodInterno,
                                           IdFerreteria,
@@ -1128,7 +1126,8 @@ export const postUpdateInventory = async(req, res) => {
                         req.body.Responsable,
                         req.body.Motivo,
                         0]
-      await connection.execute(sql1, values1);
+      //await connection.execute(sql1, values1);
+      console.log("Values1: " + values1)
       console.log("entro a entradas")
     } else if (difference < 0) { 
       const sql2 = `INSERT INTO salidas (ConsecutivoVenta,
@@ -1170,6 +1169,7 @@ export const postUpdateInventory = async(req, res) => {
                       0,
                       req.body.Motivo,
                       req.body.Fecha]
+    //console.log("values2: ", values2)
     await connection.execute(sql2, values2);
     console.log("entro a salidas")
     }
