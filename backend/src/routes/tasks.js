@@ -157,6 +157,6 @@ router.post('/pos/modifypurchaseproduct', putModifyPurchaseProduct);
 //*All about sales
 router.post('/pos/newsale', putNewSale);
 
-router.get('/pos/salesperday', getSalesPerDay);
+router.post('/pos/salesperday', getSalesPerDay);
 
 export default router

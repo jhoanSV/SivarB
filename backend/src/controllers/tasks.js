@@ -583,9 +583,6 @@ export const SendSale = async (req, res) => {
   }
 };
 
-
-
-
 //to the sivar pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 export const putNewClient = async (req, res) => {
@@ -742,22 +739,36 @@ export const putNewProduct = async (req, res) => {
                                                           PVenta,
                                                           InvMinimo,
                                                           InvMaximo,
-                                                          Ubicacion,
-                                                          Medida,
-                                                          UMedida,
-                                                          PrecioUM)
-                                      VALUES (?,?,?,?,?,?,?,?,?,?)`
+                                                          Ubicacion)
+                                      VALUES (?,?,?,?,?,?,?)`
       const values2 = [Consecutivo,
                        req.body.IdFerreteria,
                        req.body.PCosto,
                        req.body.PVenta,
                        req.body.InvMinimo,
                        req.body.InvMaximo,
-                       req.body.Ubicacion,
-                       req.body.Medida,
-                       req.body.UMedida,
-                       req.body.PrecioUM]
+                       req.body.Ubicacion]
       await connection.execute(sql2, values2);
+
+      const sqlMedidas = `INSERT INTO
+                            medida
+                            (Consecutivo,
+                            IdFerreteria,
+                            Medida,
+                            UMedida,
+                            PrecioUM)
+                            VALUES (?,?,?,?,?)`
+      
+      for (const entry in req.body.Medidas) {
+        const MedidasValues = [
+          req.body.Consecutivo,
+          req.body.IdFerreteria,
+          entry.Medida,
+          entry.UMedida,
+          entry.PrecioUM
+        ]
+        await connection.execute(sqlMedidas, MedidasValues)
+      }
 
       //Fourth query of the consecutive of the new product in entradas but the inner consecutive
       const [codInternoRows] = await connection.query("SELECT IFNULL(MAX(CodInterno)+1,0) AS NextCodInterno FROM entradas WHERE IdFerreteria = ?", [req.body.IdFerreteria]);
@@ -839,14 +850,10 @@ export const getProductList = async (req, res) => {
                                                     subca.IdSubCategoria,
                                                     pro.Clase,
                                                     pro.Detalle,
-                                                    CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario,
-                                                    IFNULL(dpro.Medida, '') AS Medida,
-                                                    IFNULL(dpro.UMedida, 0) AS UMedida,
-                                                    IFNULL(dpro.PrecioUM, 0) AS PVentaUM
+                                                    CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario
                                                   FROM
                                                     productos AS pro
                                                     LEFT JOIN detalleproductoferreteria AS dpro ON pro.Consecutivo = dpro.Consecutivo
-                                                    LEFT JOIN medida AS me ON pro.Consecutivo = me.Consecutivo
                                                     JOIN subcategorias AS subca ON pro.SubCategoria = subca.IdSubCategoria
                                                     JOIN categorias AS ca ON subca.IdCategoria = ca.IdCategoria
                                                     LEFT JOIN (
@@ -869,6 +876,33 @@ export const getProductList = async (req, res) => {
                                                     ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
                                                     WHERE
                                                     pro.IdFerreteria = '' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria])
+      const [MedidasList] = await connection.query(`SELECT
+                                                      Consecutivo,
+                                                      Medida,
+                                                      UMedida,
+                                                      PrecioUM AS PVentaUM
+                                                    FROM
+                                                      medida
+                                                    WHERE
+                                                      IdFerreteria = ?`, [req.body.IdFerreteria])
+
+      // Crear un mapa para agrupar las medidas por Consecutivo
+      const measuresMap = MedidasList.reduce((map, measure) => {
+        if (!map[measure.Consecutivo]) {
+          map[measure.Consecutivo] = [];
+        }
+        map[measure.Consecutivo].push({
+          Medida: measure.Medida,
+          UMedida: measure.UMedida,
+          PVentaUM: measure.PVentaUM,
+        });
+        return map;
+      }, {});
+
+      // Agregar las medidas correspondientes a cada producto
+      for (let product of productList) {
+        product.Medidas = measuresMap[product.Consecutivo] || [];
+      }
       res.status(200).json(productList);
   } catch (error) {
       console.log(error);
@@ -889,10 +923,9 @@ export const getInventory = async (req, res) => {
                                                         COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
                                                         det.PCosto,
                                                         det.PVenta,
-                                                        det.PrecioUM as PVentaUM,
-                                                        det.Medida,
                                                         det.InvMinimo,
-                                                        det.InvMaximo
+                                                        det.InvMaximo,
+                                                        pro.Clase
                                                     FROM
                                                         productos AS pro
                                                         LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
@@ -918,6 +951,33 @@ export const getInventory = async (req, res) => {
                                                         det.IdFerreteria = ?
                                                     GROUP BY 
                                                         pro.Consecutivo`,[req.body.IdFerreteria])
+      const [MedidasList] = await connection.query(`SELECT
+                                                      Consecutivo,
+                                                      Medida,
+                                                      UMedida,
+                                                      PrecioUM AS PVentaUM
+                                                    FROM
+                                                      medida
+                                                    WHERE
+                                                      IdFerreteria = ?`, [req.body.IdFerreteria])
+    
+      // Crear un mapa para agrupar las medidas por Consecutivo
+      const measuresMap = MedidasList.reduce((map, measure) => {
+        if (!map[measure.Consecutivo]) {
+          map[measure.Consecutivo] = [];
+        }
+        map[measure.Consecutivo].push({
+          Medida: measure.Medida,
+          UMedida: measure.UMedida,
+          PVentaUM: measure.PVentaUM,
+        });
+        return map;
+      }, {});
+
+      // Agregar las medidas correspondientes a cada producto
+      for (let product of InventoryList) {
+        product.Medidas = measuresMap[product.Consecutivo] || [];
+      }
       res.status(200).json(InventoryList);
       connection.end();
   } catch (error) {
@@ -931,6 +991,7 @@ export const postUpdateProduct = async (req, res) => {
   try {
     await connection.beginTransaction();
 
+    // Actualizar el producto principal
     const updateProductSql = `
       UPDATE productos
       SET
@@ -952,7 +1013,7 @@ export const postUpdateProduct = async (req, res) => {
       req.body.ConsecutivoProd
     ];
     await connection.execute(updateProductSql, productValues);
-    console.log(product)
+    // Verificar si ya existe el producto en detalleproductoferreteria
     const [queryCantidad] = await connection.query(`
       SELECT
         Consecutivo
@@ -961,69 +1022,85 @@ export const postUpdateProduct = async (req, res) => {
       WHERE
         Consecutivo = ? AND IdFerreteria = ?`, 
       [req.body.ConsecutivoProd, req.body.IdFerreteria]);
+    /*const [queryMedidas] = await connection.query(`SELECT
+                                                    Consecutivo
+                                                  FROM
+                                                    medida
+                                                  WHERE
+                                                    Consecutivo = ? AND IdFerreteria = ?`, [req.body.ConsecutivoProd, req.body.IdFerreteria]);*/
 
-    const detalleSql = queryCantidad.length > 0 
-      ? `
-        UPDATE
-          detalleproductoferreteria
-        SET
-          PCosto = ?,
-          PVenta = ?,
-          Ubicacion = ?,
-          InvMinimo = ?,
-          InvMaximo = ?,
-          Medida = ?,
-          UMedida = ?,
-          PrecioUM = ?
-        WHERE
-          Consecutivo = ? AND IdFerreteria = ?`
-      : `
-        INSERT INTO
-          detalleproductoferreteria
-            (Consecutivo,
-            IdFerreteria,
-            PCosto,
-            PVenta,
-            InvMinimo,
-            InvMaximo,
-            Ubicacion,
-            Medida,
-            UMedida,
-            PrecioUM
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    // Construir las consultas y valores para detalleproductoferreteria y medida
+    const isUpdate = queryCantidad.length > 0;
+    //const isUpdateMedidas =  queryCantidad.length  >0;
+    const detalleProductoSql = isUpdate ? `
+      UPDATE
+        detalleproductoferreteria
+      SET
+        PCosto = ?,
+        PVenta = ?,
+        InvMinimo = ?,
+        InvMaximo = ?,
+        Ubicacion = ?
+      WHERE
+        Consecutivo = ? AND IdFerreteria = ?` : `
+      INSERT INTO
+        detalleproductoferreteria
+        (Consecutivo,
+        IdFerreteria,
+        PCosto,
+        PVenta,
+        InvMinimo,
+        InvMaximo,
+        Ubicacion)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
-    const detalleValues = queryCantidad.length > 0 
-      ? [
-          req.body.PCosto,
-          req.body.PVenta,
-          req.body.Ubicacion,
-          req.body.InvMinimo,
-          req.body.InvMaximo,
-          req.body.Medida,
-          req.body.UMedida,
-          req.body.PrecioUM,
-          req.body.ConsecutivoProd,
-          req.body.IdFerreteria
-        ]
-      : [
+    const detalleProductoValues = [
+      req.body.PCosto,
+      req.body.PVenta,
+      req.body.InvMinimo,
+      req.body.InvMaximo,
+      req.body.Ubicacion,
+      req.body.ConsecutivoProd,
+      req.body.IdFerreteria
+    ];
+
+    // Ejecutar la consulta para detalleproductoferreteria
+    await connection.execute(detalleProductoSql, detalleProductoValues);
+    const eliminarMedida = `DELETE FROM
+                              medida
+                            WHERE
+                              Consecutivo = ? AND IdFerreteria = ?`
+    const eliminarMedidaValues = [req.body.ConsecutivoProd, req.body.IdFerreteria,]
+    await connection.execute(eliminarMedida, eliminarMedidaValues)
+    
+    // Incerta las medidas
+    if (req.body.Medidas.length > 0 ) {
+      const medidaPromises = req.body.Medidas.map(entry => {
+        const detalleMedidaSql = `INSERT INTO
+                                    medida
+                                    (Consecutivo,
+                                    IdFerreteria,
+                                    Medida,
+                                    UMedida,
+                                    PrecioUM)
+                                  VALUES (?, ?, ?, ?, ?)`;
+        const detalleMedidaValues = [
           req.body.ConsecutivoProd,
           req.body.IdFerreteria,
-          req.body.PCosto,
-          req.body.PVenta,
-          req.body.InvMinimo,
-          req.body.InvMaximo,
-          req.body.Ubicacion,
-          req.body.Medida,
-          req.body.UMedida,
-          req.body.PrecioUM
+          entry.Medida,
+          entry.UMedida,
+          entry.PVentaUM
         ];
-
-    await connection.execute(detalleSql, detalleValues);
+        return connection.execute(detalleMedidaSql, detalleMedidaValues);
+      });
+      await Promise.all(medidaPromises);
+    }
+    // Confirmar la transacción
     await connection.commit();
     res.status(200).json({ message: 'Transacción completada con éxito' });
   } catch (error) {
-    await connection.rollback();
     console.log(error);
+    await connection.rollback();
     res.status(500).json(error);
   } finally {
     await connection.end();
@@ -1036,53 +1113,45 @@ export const postUpdateInventory = async(req, res) => {
     await connection.beginTransaction();
     let value = 0
     //First query of the consecutive of the new product in entradas but the inner consecutive
-    const [productData, [queryCantidad]] = await Promise.all([
-      connection.query(`SELECT
-                        pro.Cod,
-                        pro.Descripcion,
-                        pro.subcategoria,
-                        pro.Detalle
-                      FROM
-                        productos AS pro
-                      WHERE
-                        pro.Consecutivo = ?`, [req.body.ConsecutivoProd]),
-    //Fourth query of the consecutive of the new product in entradas but the inner consecutive
-      connection.query(`SELECT
-                          IFNULL(en.entradas, 0) - IFNULL(sa.salidas, 0) AS Cantidad
-                      FROM
-                          (SELECT
-                              ConsecutivoProd,
-                              SUM(Cantidad) AS entradas
-                          FROM
-                              entradas
-                          WHERE
-                              ConsecutivoProd = ? AND IdFerreteria = ?
-                          GROUP BY
-                              ConsecutivoProd) AS en
-                      LEFT JOIN
-                          (SELECT
-                              ConsecutivoProd,
-                              SUM(Cantidad) AS salidas
-                          FROM
-                              salidas
-                          WHERE
-                              ConsecutivoProd = ? AND IdFerreteria = ?
-                          GROUP BY
-                              ConsecutivoProd) AS sa
-                      ON en.ConsecutivoProd = sa.ConsecutivoProd`, [req.body.ConsecutivoProd,
-                                                                    req.body.IdFerreteria,
-                                                                    req.body.ConsecutivoProd,
-                                                                    req.body.IdFerreteria]
-      )
-    ]);
-    console.log([req.body.ConsecutivoProd,
-                  req.body.IdFerreteria,
-                  req.body.ConsecutivoProd,
-                  req.body.IdFerreteria])
+    const [productData] = await connection.query(`SELECT
+                                              pro.Cod,
+                                              pro.Descripcion,
+                                              pro.subcategoria,
+                                              pro.Detalle
+                                            FROM
+                                              productos AS pro
+                                            WHERE
+                                              pro.Consecutivo = ?`, [req.body.ConsecutivoProd]);
+    
+    const [queryCantidad] = await connection.query(`SELECT
+                                                  IFNULL(en.entradas, 0) - IFNULL(sa.salidas, 0) AS Cantidad
+                                              FROM
+                                                  (SELECT
+                                                      ConsecutivoProd,
+                                                      SUM(Cantidad) AS entradas
+                                                  FROM
+                                                      entradas
+                                                  WHERE
+                                                      ConsecutivoProd = ? AND IdFerreteria = ?
+                                                  GROUP BY
+                                                      ConsecutivoProd) AS en
+                                              LEFT JOIN
+                                                  (SELECT
+                                                      ConsecutivoProd,
+                                                      SUM(Cantidad) AS salidas
+                                                  FROM
+                                                      salidas
+                                                  WHERE
+                                                      ConsecutivoProd = ? AND IdFerreteria = ?
+                                                  GROUP BY
+                                                      ConsecutivoProd) AS sa
+                                              ON en.ConsecutivoProd = sa.ConsecutivoProd`, [req.body.ConsecutivoProd,
+                                                                                            req.body.IdFerreteria,
+                                                                                            req.body.ConsecutivoProd,
+                                                                                            req.body.IdFerreteria]);
     const cantidadactual = parseFloat(queryCantidad[0].Cantidad);
     value = Math.abs(cantidadactual-req.body.Cantidad)
     const difference = req.body.Cantidad - cantidadactual
-    console.log("product data: " + JSON.stringify(productData[0]))
     if (difference > 0) {
       const sql1 = `INSERT INTO entradas (CodInterno,
                                           IdFerreteria,
@@ -1126,9 +1195,7 @@ export const postUpdateInventory = async(req, res) => {
                         req.body.Responsable,
                         req.body.Motivo,
                         0]
-      //await connection.execute(sql1, values1);
-      console.log("Values1: " + values1)
-      console.log("entro a entradas")
+      await connection.execute(sql1, values1);
     } else if (difference < 0) { 
       const sql2 = `INSERT INTO salidas (ConsecutivoVenta,
                                          IdFerreteria,
@@ -1171,7 +1238,6 @@ export const postUpdateInventory = async(req, res) => {
                       req.body.Fecha]
     //console.log("values2: ", values2)
     await connection.execute(sql2, values2);
-    console.log("entro a salidas")
     }
     // Confirm the transaction
     await connection.commit();
@@ -1624,33 +1690,74 @@ export const putNewSale = async (req, res) => {
 export const getSalesPerDay = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
-    const [purchaseList] = await connection.query(`SELECT
+    const [salesList] = await connection.query(`SELECT
                                                     cv.Consecutivo,
-                                                    cv.Fecha,
                                                     cv.Folio,
                                                     cv.IdCliente,
+                                                    cli.Nombre,
+                                                    cli.Apellido,
+                                                    cli.Telefono1,
+                                                    cli.Correo,
+                                                    cli.Direccion,
+                                                    cv.Fecha,
+                                                    cv.CodResponsable,
                                                     cv.FacturaElectronica,
-                                                    cv.Cufe,
-                                                    sa.Cantidad,
-                                                    sa.ConsecutivoProd,
-                                                    sa.Cod,
-                                                    sa.Descripcion,
-                                                    sa.VrUnitario
+                                                    cv.Cufe
                                                   FROM
                                                     cabeceraventas AS cv
-                                                    JOIN salidas AS sa ON cv.Consecutivo = sa.ConsecutivoVenta
+                                                  JOIN
+                                                    clientes AS cli ON cv.IdCliente = cli.Consecutivo
                                                   WHERE
                                                     cv.IdFerreteria = ? AND DATE(cv.Fecha) = ?
                                                   ORDER BY cv.Folio DESC`, [req.body.IdFerreteria, req.body.Fecha]);
+    const [salesDetail] = await connection.query(`SELECT
+                                                    sa.ConsecutivoVenta AS Consecutivo,
+                                                    sa.ConsecutivoProd,
+                                                    sa.Cantidad,
+                                                    sa.Cod,
+                                                    sa.Descripcion,
+                                                    sa.VrUnitario,
+                                                    sa.VrCosto,
+                                                    sa.Iva
+                                                  FROM
+                                                    salidas AS sa
+                                                  WHERE
+                                                    IdFerreteria = ? AND DATE(sa.Fecha) = ? AND sa.ConsecutivoVenta <> 0`, [req.body.IdFerreteria, req.body.Fecha]);
+    // Crear un mapa para agrupar las medidas por Consecutivo
+    const rowsMap = salesDetail.reduce((map, row) => {
+      if (!map[row.Consecutivo]) {
+        map[row.Consecutivo] = [];
+      }
+      map[row.Consecutivo].push({
+        ConsecutivoVenta: row.Consecutivo,
+        ConsecutivoProd: row.ConsecutivoProd,
+        Cantidad: row.Cantidad,
+        Cod: row.Cod,
+        Descripcion: row.Descripcion,
+        VrUnitario: row.VrUnitario,
+        VrCosto: row.VrCosto,
+        Iva: row.Iva
+      });
+      return map;
+    }, {});
+    
+    // Agregar las medidas correspondientes a cada producto
+    for (let product of salesList) {
+      product.Orden = rowsMap[product.Consecutivo] || [];
+      product.Total = product.Orden.reduce((suma, element) => {
+        return suma + (element.Cantidad * element.VrUnitario);
+      }, 0);
+    };
+    res.status(200).json(salesList);
   } catch (error) {
     // In case of error, the transaction is returned
     await connection.rollback();
     console.log("este es el error del nuevo producto ", error);
     res.status(500).json(error);
-} finally {
-    // Close the connection
-    await connection.end();
-}
+  } finally {
+      // Close the connection
+      await connection.end();
+  }
 }
 
 export const bestRoute = async (req, res) => {
