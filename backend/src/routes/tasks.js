@@ -34,7 +34,13 @@ import { getTasks,
         putAddPurchase,
         bestRoute,
         putUpdateVefied,
-        putModifyPurchaseProduct} from '../controllers/tasks';
+        putModifyPurchaseProduct,
+        getShoppingList,
+        inserSivarList,
+        getCashFlow,
+        putNewMoneyFlow,
+        updateRemoveFlow,
+        putNewOutput} from '../controllers/tasks';
 
 
 const router = Router();
@@ -143,6 +149,8 @@ router.post('/pos/postupdateinventory', postUpdateInventory);
 
 router.get('/pos/subcategories', getSubCategories);
 
+router.post('/pos/shoppinglist', getShoppingList);
+
 //* All about purchases
 router.post('/pos/purchaseList', getPurchaseList);
 
@@ -158,5 +166,15 @@ router.post('/pos/modifypurchaseproduct', putModifyPurchaseProduct);
 router.post('/pos/newsale', putNewSale);
 
 router.post('/pos/salesperday', getSalesPerDay);
+
+router.post('/pos/cashflow', getCashFlow);
+
+router.post('/pos/newmoneyflow', putNewMoneyFlow);
+
+router.post('/pos/removeflow', updateRemoveFlow);
+
+router.post('/pos/newoutput', putNewOutput)
+//*Other Functions
+//router.post('/pos/inserSivarList', inserSivarList);
 
 export default router

@@ -406,6 +406,7 @@ Content-Type: application/json
     "UMedida": 0,
     "PrecioUM": 0
 }
+
 ###
 POST {{api}}pos/salesperday
 Content-Type: application/json
@@ -414,3 +415,16 @@ Content-Type: application/json
     "IdFerreteria": 242,
     "Fecha": "2024-04-07"
 }
+
+###
+POST {{api}}pos/shoppinglist
+Content-Type: application/json
+
+{
+    "IdFerreteria": 242,
+    "Fecha": "2024-08-16",
+    "TipoDeFlujo": false
+}
+
+###
+POST {{api}}pos/inserSivarList
