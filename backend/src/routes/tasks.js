@@ -40,7 +40,11 @@ import { getTasks,
         getCashFlow,
         putNewMoneyFlow,
         updateRemoveFlow,
-        putNewOutput} from '../controllers/tasks';
+        putNewOutput,
+        putCancelTheSale,
+        getCRDetail,
+        getSalesByCategory,
+        getBestProducts} from '../controllers/tasks';
 
 
 const router = Router();
@@ -128,6 +132,10 @@ router.post('/tasks/SendSale', SendSale)
 
 router.post('/tasks/bestroute', bestRoute)
 
+
+
+
+
 //to the siver pos%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 //*All retalet to clients
 router.post('/pos/newclient', putNewClient);
@@ -174,6 +182,14 @@ router.post('/pos/newmoneyflow', putNewMoneyFlow);
 router.post('/pos/removeflow', updateRemoveFlow);
 
 router.post('/pos/newoutput', putNewOutput)
+
+router.post('/pos/cancelthesale', putCancelTheSale)
+
+router.post('/pos/crdetail', getCRDetail);
+
+router.post('/pos/bestProducts', getBestProducts);
+
+router.post('/pos/salesbycategory', getSalesByCategory)
 //*Other Functions
 //router.post('/pos/inserSivarList', inserSivarList);
 

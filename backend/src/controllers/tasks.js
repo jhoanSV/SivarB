@@ -942,7 +942,7 @@ export const getInventory = async (req, res) => {
                                                         LEFT JOIN (
                                                             SELECT 
                                                                 ConsecutivoProd,
-                                                                SUM(Cantidad) AS entradas 
+                                                                SUM(Cantidad/UMedida) AS entradas 
                                                             FROM 
                                                                 entradas 
                                                             GROUP BY 
@@ -951,7 +951,7 @@ export const getInventory = async (req, res) => {
                                                         LEFT JOIN (
                                                             SELECT 
                                                                 ConsecutivoProd, 
-                                                                SUM(Cantidad) AS salidas 
+                                                                SUM(Cantidad/UMedida) AS salidas 
                                                             FROM 
                                                                 salidas 
                                                             GROUP BY 
@@ -1293,61 +1293,239 @@ export const getShoppingList = async (req, res) => {
   const connection = await connectDBSivarPos();
   const connectionSivar = await connect()
   try {
-    const [lowInventory] = await connection.query(`SELECT
-                                                  pro.Consecutivo,
-                                                  pro.IdFerreteria,
-                                                  pro.Cod,
-                                                  pro.Descripcion,
-                                                  COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
-                                                  det.PCosto,
-                                                  det.PVenta,
-                                                  det.InvMinimo,
-                                                  det.InvMaximo,
-                                                  pro.Iva,
-                                                  pro.Clase
-                                                FROM
-                                                  productos AS pro
-                                                  LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
-                                                  LEFT JOIN (
-                                                      SELECT 
-                                                    ConsecutivoProd,
-                                                    SUM(Cantidad) AS entradas 
-                                                      FROM 
-                                                    entradas 
-                                                      GROUP BY 
-                                                    ConsecutivoProd
-                                                  ) AS en ON pro.Consecutivo = en.ConsecutivoProd
-                                                  LEFT JOIN (
-                                                      SELECT 
-                                                    ConsecutivoProd, 
-                                                    SUM(Cantidad) AS salidas 
-                                                      FROM 
-                                                    salidas 
-                                                      GROUP BY 
-                                                    ConsecutivoProd
-                                                  ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
-                                                    WHERE
-                                                  det.IdFerreteria = ? AND COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) <= det.InvMinimo
+    if (req.body.Compras === false) {
+      const [lowInventory] = await connection.query(`SELECT
+                                                      pro.Consecutivo,
+                                                      pro.IdFerreteria,
+                                                      pro.Cod,
+                                                      pro.Descripcion,
+                                                      COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
+                                                      det.InvMinimo,
+                                                      det.InvMaximo,
+                                                      ca.Categoria,
+                                                      pro.Detalle,
+                                                      pro.Iva,
+                                                      pro.Clase
+                                                    FROM
+                                                      productos AS pro
+                                                      LEFT JOIN
+                                                    subcategorias AS sc ON sc.IDSubCategoria = pro.SubCategoria
+                                                      LEFT JOIN
+                                                    categorias AS ca ON sc.IDCategoria = ca.IDCategoria
+                                                      LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
+                                                      LEFT JOIN (
+                                                    SELECT 
+                                                        ConsecutivoProd,
+                                                        SUM(Cantidad) AS entradas 
+                                                    FROM 
+                                                        entradas 
                                                     GROUP BY 
-                                                  pro.Consecutivo`, [req.body.IdFerreteria]);
-    const sivarProducts = lowInventory.filter(pro => pro.IdFerreteria === 0)
-    // Extraer solo los Cod de esos productos
-    const codList = sivarProducts.map(pro => pro.Cod);
-    
+                                                        ConsecutivoProd
+                                                      ) AS en ON pro.Consecutivo = en.ConsecutivoProd
+                                                      LEFT JOIN (
+                                                    SELECT 
+                                                        ConsecutivoProd, 
+                                                        SUM(Cantidad) AS salidas 
+                                                    FROM 
+                                                        salidas 
+                                                    GROUP BY 
+                                                        ConsecutivoProd
+                                                      ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
+                                                        WHERE
+                                                      det.IdFerreteria = ? AND COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) <= det.InvMinimo
+                                                        GROUP BY 
+                                                      pro.Consecutivo`, [req.body.IdFerreteria]);
+      const sivarProducts = lowInventory.filter(pro => pro.IdFerreteria === 0)
+      // Extraer solo los Cod de esos productos
+      const codList = sivarProducts.map(pro => pro.Cod);
+      
+      // Crear una lista para usarse en la consulta SQL
+      const codListForQuery = codList.map(cod => `'${cod}'`).join(',');
+      const [formProductsSivar] = await connectionSivar.query(`SELECT
+                                                                pro.Cod,
+                                                                pro.EsUnidadOpaquete,
+                                                                pro.PVenta AS PCosto,
+                                                                pro.Iva,
+                                                                pro.Agotado
+                                                              FROM
+                                                                productos AS pro
+                                                              WHERE
+                                                                pro.Cod IN (${codListForQuery})`)
+      
+    // Convertir formProductsSivar en un diccionario para fácil acceso
+    const formProductsSivarMap = formProductsSivar.reduce((acc, item) => {
+      acc[item.Cod] = item;
+      return acc;
+    }, {});
+
+    // Añadir datos a lowInventory
+    const updatedLowInventory = lowInventory.map(pro => {
+      if (pro.IdFerreteria === 0) {
+          const additionalData = formProductsSivarMap[pro.Cod] || {
+              EsUnidadOpaquete: 1,
+              PCosto: 0,
+              Iva: 1,
+              Agotado: 0
+          };
+          return { ...pro, ...additionalData };
+      }
+      return pro;
+    });
+      console.log(updatedLowInventory )
+      res.status(200).json(updatedLowInventory);
+            
+  } else {
+    const [productsList] = await connectionSivar.query(`WITH RankedResults AS (
+                                                    SELECT
+                                                        *,
+                                                        ROW_NUMBER() OVER (PARTITION BY Cod ORDER BY Score DESC) AS RowNum
+                                                    FROM (
+                                                        SELECT
+                                                            p.Cod,
+                                                            p.Descripcion,
+                                                            p.EsUnidadOpaquete,
+                                                            c.Categoria,
+                                                            p.PVenta,
+                                                            p.Iva,
+                                                            p.Agotado,
+                                                            p.Detalle,
+                                                            (
+                                                                0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) +
+                                                                0.5 * (
+                                                                    COUNT(CASE 
+                                                                        WHEN DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.Codigo IS NOT NULL AND sa.CodCliente = ? THEN sa.Codigo
+                                                                    END) / (SELECT COUNT(sa.Codigo) FROM salidas AS sa WHERE DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.CodCliente = ?)
+                                                                ) / 6 +
+                                                                0.2 * IFNULL(
+                                                                    SUM(CASE 
+                                                                        WHEN DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.Codigo IS NOT NULL AND sa.CodCliente = ? THEN sa.Cantidad * (sa.VrUnitario - sa.Costo) 
+                                                                    END), 0)
+                                                            ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente = ? AND NDePedido <> '0') AS Score
+                                                        FROM 
+                                                            productos AS p
+                                                        JOIN
+                                                            salidas AS sa ON p.Cod = sa.Codigo
+                                                        JOIN
+                                                            subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
+                                                        JOIN
+                                                            categoria AS c ON sub.IDCategoria = c.IDCategoria
+                                                        WHERE
+                                                            sa.CodCliente = ?
+                                                        GROUP BY p.Cod
+                                                
+                                                        UNION ALL
+                                                
+                                                        SELECT
+                                                            p.Cod,
+                                                            p.Descripcion,
+                                                            p.EsUnidadOpaquete,
+                                                            c.Categoria,
+                                                            p.PVenta,
+                                                            p.Iva,
+                                                            p.Agotado,
+                                                            p.Detalle,
+                                                            (
+                                                                0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) +
+                                                                0.5 * (
+                                                                    COUNT(CASE 
+                                                                        WHEN DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.Codigo IS NOT NULL AND sa.CodCliente <> ? THEN sa.Codigo
+                                                                    END) / (SELECT COUNT(sa.Codigo) FROM salidas AS sa WHERE DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.CodCliente <> ?)
+                                                                ) / 6 +
+                                                                0.2 * IFNULL(
+                                                                    SUM(CASE 
+                                                                        WHEN DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.Codigo IS NOT NULL AND sa.CodCliente <> ? THEN sa.Cantidad * (sa.VrUnitario - sa.Costo) 
+                                                                    END), 0)
+                                                            ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente <> ? AND NDePedido <> '0') AS Score
+                                                        FROM 
+                                                            productos AS p
+                                                        JOIN
+                                                            salidas AS sa ON p.Cod = sa.Codigo
+                                                        JOIN
+                                                            subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
+                                                        JOIN
+                                                            categoria AS c ON sub.IDCategoria = c.IDCategoria
+                                                        WHERE
+                                                            sa.CodCliente <> ?
+                                                        GROUP BY p.Cod
+                                                    ) AS CombinedResults
+                                                )
+                                                SELECT
+                                                    Cod,
+                                                    Descripcion,
+                                                    EsUnidadOpaquete,
+                                                    Categoria,
+                                                    PVenta as PCosto,
+                                                    Iva,
+                                                    Agotado,
+                                                    Detalle,
+                                                    Score
+                                                FROM
+                                                    RankedResults
+                                                WHERE
+                                                    RowNum = 1 AND Cod <> '1'
+                                                ORDER BY
+                                                    Score DESC;`,[req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria,
+                                                                  req.body.IdFerreteria]);
+    const codList = productsList.map(pro => pro.Cod);
     // Crear una lista para usarse en la consulta SQL
     const codListForQuery = codList.map(cod => `'${cod}'`).join(',');
-    const [formProductsSivar] = await connectionSivar.query(`SELECT
-                                                              pro.Cod,
-                                                              pro.EsUnidadOpaquete,
-                                                              pro.PVenta,
-                                                              pro.Iva,
-                                                              pro.Agotado
-                                                            FROM
-                                                              productos AS pro
-                                                            WHERE
-                                                              pro.Cod IN (${codListForQuery})`)
-    
-    console.log(formProductsSivar)
+    const [formProductsSivar] = await connection.query(`SELECT
+                                                          pro.Cod,
+                                                          COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
+                                                          det.InvMinimo,
+                                                          det.InvMaximo
+                                                        FROM
+                                                        productos AS pro
+                                                        LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
+                                                        LEFT JOIN (
+                                                            SELECT 
+                                                          ConsecutivoProd,
+                                                          SUM(Cantidad/UMedida) AS entradas 
+                                                            FROM 
+                                                          entradas 
+                                                            GROUP BY 
+                                                          ConsecutivoProd
+                                                        ) AS en ON pro.Consecutivo = en.ConsecutivoProd
+                                                        LEFT JOIN (
+                                                            SELECT 
+                                                          ConsecutivoProd, 
+                                                          SUM(Cantidad/UMedida) AS salidas 
+                                                            FROM 
+                                                          salidas 
+                                                            GROUP BY 
+                                                          ConsecutivoProd
+                                                        ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
+                                                        WHERE
+                                                        det.IdFerreteria = ? AND pro.Cod IN (${codListForQuery})
+                                                        GROUP BY 
+                                                        pro.Consecutivo`, [req.body.IdFerreteria])
+    // Convertir formProductsSivar en un diccionario para fácil acceso
+    const formProductsSivarMap = formProductsSivar.reduce((acc, item) => {
+      acc[item.Cod] = item;
+      return acc;
+    }, {});
+
+    // Añadir datos a lowInventory
+    const updatedProductList = productsList.map(pro => {
+          const additionalData = formProductsSivarMap[pro.Cod] || {
+            Inventario: 0,
+            InvMinimo: 0,
+            InvMaximo: 0
+          };
+          return { ...pro, ...additionalData };
+      }
+    );
+    //console.log(updatedProductList )
+    res.status(200).json(updatedProductList);
+  }
   } catch (error) {
     console.log(error);
     res.status(500).json(error);
@@ -1862,7 +2040,7 @@ export const getSalesPerDay = async (req, res) => {
                                                       WHERE
                                                           Motivo = 'Devolución mercancia'
                                                       GROUP BY
-                                                          ConsecutivoProd, Medida
+                                                          ConsecutivoProd, Medida, ConsecutivoCompra
                                                   ) AS en ON en.ConsecutivoProd = sa.ConsecutivoProd AND en.Medida = sa.Medida AND sa.ConsecutivoVenta = en.ConsecutivoCompra
                                                   WHERE
                                                       sa.IdFerreteria = ?
@@ -2046,6 +2224,202 @@ export const putNewOutput = async (req, res) => {
         res.status(200).json({ message: 'Transacción completada con éxito' });
   } catch (error) {
     console.error("Error en la función putNewMoneyFlow: ", error);
+    res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
+  }
+}
+
+export const putCancelTheSale = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+    const toMoneyFlow = `INSERT INTO flujodedinero (ConsecutivoCV,
+                                                    IdFerreteria,
+                                                    Fecha,
+                                                    Referencia,
+                                                    Efectivo,
+                                                    Transferencia,
+                                                    Motivo,
+                                                    Comentarios,
+                                                    TipoDeFlujo,
+                                                    Activo)
+                                        VALUES (?,
+                                                ?,
+                                                ?,
+                                                ?,
+                                                ?,
+                                                ?,
+                                                ?,
+                                                ?,
+                                                ?,
+                                                ?)`
+
+    const valoresMoneyFlow = [req.body.Consecutivo,
+                              req.body.IdFerreteria,
+                              req.body.FechaActual,
+                              '',
+                              req.body.Efectivo,
+                              0,
+                              'Devolución mercancia',
+                              '',
+                              true,
+                              true]
+    console.log('valoresMoneyFlow: ', valoresMoneyFlow)
+    await connection.query(toMoneyFlow, valoresMoneyFlow);
+    
+    const returnProducts = `INSERT INTO
+                              entradas (CodInterno,
+                                        IdFerreteria,
+                                        ConsecutivoProd,
+                                        Cantidad,
+                                        Cod,
+                                        Descripcion,
+                                        PCosto,
+                                        PCostoLP,
+                                        Fecha,
+                                        Iva,
+                                        CodResponsable,
+                                        Responsable,
+                                        Motivo,
+                                        ConsecutivoCompra,
+                                        Medida,
+                                        UMedida)
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    for (let product of req.body.Orden) {
+      if (product.CantidadSa - product.CantidadEn !== 0) {
+        const valoresEntradas = [0,
+                                req.body.IdFerreteria,
+                                product.ConsecutivoProd,
+                                product.CantidadSa - product.CantidadEn,
+                                product.Cod,
+                                product.Descripcion,
+                                product.VrCosto,
+                                0,
+                                req.body.FechaActual,
+                                product.Iva,
+                                req.body.IdFerreteria,
+                                req.body.Responsable,
+                                'Devolución mercancia',
+                                req.body.Consecutivo,
+                                product.Medida,
+                                product.UMedida]
+        console.log('valoresEntradas: ', valoresEntradas)
+        await connection.query(returnProducts, valoresEntradas);
+      }
+    }
+    
+    res.status(200).json({ message: 'Transacción completada con éxito' });
+  } catch (error) {
+    console.error("Error en la función putNewMoneyFlow: ", error);
+    res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
+  }
+}
+
+export const getCRDetail = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+    const [cashflow] = await connection.query(`SELECT
+                                                fd.Motivo,
+                                                fd.TipoDeFlujo,
+                                                SUM(fd.Efectivo) AS Efectivo,
+                                                SUM(fd.Transferencia) AS Transferencia
+                                              FROM
+                                                flujodedinero AS fd
+                                              WHERE
+                                                fd.IdFerreteria = ? AND fd.Activo = '1' AND DATE(fd.Fecha) = ?
+                                              GROUP BY
+                                                fd.Motivo, fd.TipoDeFlujo`,[req.body.IdFerreteria, req.body.Fecha])
+    const dictionary = {};
+
+    cashflow.forEach(item => {
+      dictionary[item.Motivo] = {
+        TipoDeFlujo: item.TipoDeFlujo,
+        Efectivo: item.Efectivo,
+        Transferencia: item.Transferencia
+        // agrega otros datos si es necesario
+      };
+    });
+    console.log(dictionary);
+    res.status(200).json(dictionary)
+  } catch (error) {
+    console.error("Error en la función getCRDetail: ", error);
+    res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
+  }
+}
+
+export const getSalesByCategory = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+    const [salesByCategory] = await connection.query(`SELECT
+                                                        ca.Categoria,
+                                                        SUM(Cantidad * Vrunitario) - IFNULL(en.Devoluciones, 0) AS ventas
+                                                      FROM
+                                                        salidas AS sa
+                                                      LEFT JOIN
+                                                        productos AS pro ON sa.ConsecutivoProd = pro.Consecutivo
+                                                      LEFT JOIN
+                                                        subcategorias AS sc ON sc.IdSubCategoria = pro.SubCategoria
+                                                      LEFT JOIN
+                                                        categorias AS ca ON ca.IdCategoria = sc.IdCategoria
+                                                      LEFT JOIN
+                                                        (SELECT
+                                                          ca.Categoria,
+                                                          SUM(Cantidad * PCosto) AS Devoluciones
+                                                        FROM
+                                                          entradas AS en
+                                                        LEFT JOIN
+                                                          productos AS pro ON en.ConsecutivoProd = pro.Consecutivo
+                                                        LEFT JOIN
+                                                          subcategorias AS sc ON sc.IdSubCategoria = pro.SubCategoria
+                                                        LEFT JOIN
+                                                          categorias AS ca ON ca.IdCategoria = sc.IdCategoria
+                                                        WHERE
+                                                          en.IdFerreteria = ? AND en.Motivo = 'Devolución mercancia' AND DATE(en.Fecha) = ?
+                                                        GROUP BY
+                                                          ca.Categoria) AS en ON en.Categoria = ca.Categoria
+                                                      WHERE
+                                                        sa.IdFerreteria = ? AND sa.Motivo = 'Venta por caja' AND DATE(sa.Fecha) = ?
+                                                      GROUP BY
+                                                        ca.Categoria`,[req.body.IdFerreteria, req.body.Fecha, req.body.IdFerreteria, req.body.Fecha])
+    res.status(200).json(salesByCategory)
+  } catch (error) {
+    console.error("Error en la función SalesByCategory: ", error);
+    res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
+  }
+}
+
+export const getBestProducts = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+    const [bestProducts] = await connection.query(`SELECT
+                                                        sa.ConsecutivoProd,
+                                                        pro.Cod,
+                                                        SUM(sa.Cantidad/sa.UMedida) AS cantidad,
+                                                        pro.Descripcion
+                                                      FROM
+                                                        salidas AS sa
+                                                      LEFT JOIN
+                                                        productos AS pro ON pro.Consecutivo = sa.Consecutivo
+                                                      WHERE
+                                                        sa.IdFerreteria = ? AND DATE(sa.Fecha) = ?
+                                                      GROUP BY
+                                                        sa.ConsecutivoProd
+                                                      ORDER BY
+                                                        SUM(sa.Cantidad/sa.UMedida) DESC
+                                                      LIMIT 5`,[req.body.IdFerreteria, req.body.Fecha])
+    res.status(200).json(bestProducts)
+  } catch (error) {
+    console.error("Error en la función SalesByCategory: ", error);
     res.status(500).json(error);
   } finally {
     // Close the connection
