@@ -1,5 +1,7 @@
 import { connect, connectDBSivarPos } from "../database";
+//import jwt from 'jsonwebtoken';
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 
 export const getTasks = async(req, res) => {
@@ -592,7 +594,7 @@ export const SendSale = async (req, res) => {
   }
 };
 
-//to the sivar pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//!to the sivar pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 export const putNewClient = async (req, res) => {
   const connection = await connectDBSivarPos();
@@ -726,15 +728,18 @@ export const putNewProduct = async (req, res) => {
                                           Clase,
                                           SubCategoria,
                                           Detalle,
-                                          Iva) 
-                                  VALUES (?,?,?,?,?,?,?)`
+                                          Iva,
+                                          SVenta) 
+                                  VALUES (?,?,?,?,?,?,?,?)`
       const values1 = [req.body.IdFerreteria,
                        req.body.Cod,
                        req.body.Descripcion,
                        req.body.Clase,
                        req.body.IdSubCategoria,
                        req.body.Detalle,
-                       req.body.Iva]
+                       req.body.Iva,
+                       0]
+      //console.log('values1', values1)
       await connection.execute(sql1, values1);
 
       //Second query of the consecutive of the new product
@@ -757,6 +762,7 @@ export const putNewProduct = async (req, res) => {
                        req.body.InvMinimo,
                        req.body.InvMaximo,
                        req.body.Ubicacion]
+      //console.log('values2', values2)
       await connection.execute(sql2, values2);
 
       const sqlMedidas = `INSERT INTO
@@ -768,15 +774,20 @@ export const putNewProduct = async (req, res) => {
                             PrecioUM)
                             VALUES (?,?,?,?,?)`
       
-      for (const entry in req.body.Medidas) {
-        const MedidasValues = [
-          req.body.Consecutivo,
-          req.body.IdFerreteria,
-          entry.Medida,
-          entry.UMedida,
-          entry.PrecioUM
-        ]
-        await connection.execute(sqlMedidas, MedidasValues)
+      if (req.body.Medidas.length > 0){
+        console.log('Medidas', req.body.Medidas)
+        for (const entry of req.body.Medidas) {
+          const MedidasValues = [
+            Consecutivo,
+            req.body.IdFerreteria,
+            entry.Medida,
+            entry.UMedida,
+            entry.PVentaUM
+          ]
+          //console.log('entry', entry)
+          //console.log('MedidasValues', MedidasValues)
+          await connection.execute(sqlMedidas, MedidasValues)
+        }
       }
 
       //Fourth query of the consecutive of the new product in entradas but the inner consecutive
@@ -797,8 +808,12 @@ export const putNewProduct = async (req, res) => {
                                           CodResponsable,
                                           Responsable,
                                           Motivo,
-                                          ConsecutivoCompra)
+                                          ConsecutivoCompra,
+                                          Medida,
+                                          UMedida)
                                       VALUES (?,
+                                              ?,
+                                              ?,
                                               ?,
                                               ?,
                                               ?,
@@ -825,7 +840,11 @@ export const putNewProduct = async (req, res) => {
                        req.body.CodResponsable,
                        req.body.Responsable,
                        req.body.Motivo,
-                       0]
+                       0,
+                       '',
+                       1]
+      console.log("values3", values3)
+      //console.log('values3', values3)
       await connection.execute(sql3, values3);
       // Confirm the transaction
       await connection.commit();
@@ -868,7 +887,7 @@ export const getProductList = async (req, res) => {
                                                     LEFT JOIN (
                                                         SELECT 
                                                       ConsecutivoProd,
-                                                      SUM(Cantidad) AS entradas 
+                                                      SUM(Cantidad/UMedida) AS entradas 
                                                         FROM 
                                                       entradas 
                                                         GROUP BY 
@@ -877,7 +896,7 @@ export const getProductList = async (req, res) => {
                                                     LEFT JOIN (
                                                         SELECT 
                                                       ConsecutivoProd, 
-                                                      SUM(Cantidad) AS salidas 
+                                                      SUM(Cantidad/UMedida) AS salidas 
                                                         FROM 
                                                       salidas 
                                                         GROUP BY 
@@ -927,6 +946,7 @@ export const getInventory = async (req, res) => {
       const connection = await connectDBSivarPos();
       const [InventoryList] = await connection.query(`SELECT
                                                         pro.Consecutivo,
+                                                        pro.IdFerreteria,
                                                         pro.Cod,
                                                         pro.Descripcion,
                                                         COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
@@ -935,31 +955,39 @@ export const getInventory = async (req, res) => {
                                                         det.InvMinimo,
                                                         det.InvMaximo,
                                                         pro.Iva,
-                                                        pro.Clase
-                                                    FROM
+                                                        pro.Clase,
+                                                        pro.Detalle,
+                                                        pro.SubCategoria AS IdSubCategoria,
+                                                        sc.SubCategoria,
+                                                        sc.IdCategoria,
+                                                        ca.Categoria,
+                                                        det.Ubicacion
+                                                          FROM
                                                         productos AS pro
                                                         LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
                                                         LEFT JOIN (
                                                             SELECT 
-                                                                ConsecutivoProd,
-                                                                SUM(Cantidad/UMedida) AS entradas 
+                                                          ConsecutivoProd,
+                                                          SUM(Cantidad/UMedida) AS entradas 
                                                             FROM 
-                                                                entradas 
+                                                          entradas 
                                                             GROUP BY 
-                                                                ConsecutivoProd
+                                                          ConsecutivoProd
                                                         ) AS en ON pro.Consecutivo = en.ConsecutivoProd
                                                         LEFT JOIN (
                                                             SELECT 
-                                                                ConsecutivoProd, 
-                                                                SUM(Cantidad/UMedida) AS salidas 
+                                                          ConsecutivoProd, 
+                                                          SUM(Cantidad/UMedida) AS salidas 
                                                             FROM 
-                                                                salidas 
+                                                          salidas 
                                                             GROUP BY 
-                                                                ConsecutivoProd
+                                                          ConsecutivoProd
                                                         ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
-                                                    WHERE
+                                                        LEFT JOIN subcategorias AS sc ON pro.SubCategoria = sc.IdSubCategoria
+                                                        LEFT JOIN categorias AS ca ON ca.IdCategoria = sc.IdCategoria
+                                                          WHERE
                                                         det.IdFerreteria = ?
-                                                    GROUP BY 
+                                                          GROUP BY 
                                                         pro.Consecutivo`,[req.body.IdFerreteria])
       const [MedidasList] = await connection.query(`SELECT
                                                       Consecutivo,
@@ -1022,6 +1050,7 @@ export const postUpdateProduct = async (req, res) => {
       req.body.Iva,
       req.body.ConsecutivoProd
     ];
+    console.log('productValues', productValues)
     await connection.execute(updateProductSql, productValues);
     // Verificar si ya existe el producto en detalleproductoferreteria
     const [queryCantidad] = await connection.query(`
@@ -1035,7 +1064,6 @@ export const postUpdateProduct = async (req, res) => {
     // Construir las consultas y valores para detalleproductoferreteria y medida
     const isUpdate = queryCantidad.length > 0;
     //const isUpdateMedidas =  queryCantidad.length  >0;
-    console.log(isUpdate)
     const detalleProductoSql = isUpdate ? `
       UPDATE
         detalleproductoferreteria
@@ -1046,8 +1074,9 @@ export const postUpdateProduct = async (req, res) => {
         InvMaximo = ?,
         Ubicacion = ?
       WHERE
-        Consecutivo = ? AND IdFerreteria = ?` : `
-      INSERT INTO
+        Consecutivo = ? AND IdFerreteria = ?`
+      : 
+      `INSERT INTO
         detalleproductoferreteria
         (Consecutivo,
         IdFerreteria,
@@ -1075,8 +1104,8 @@ export const postUpdateProduct = async (req, res) => {
       req.body.InvMaximo,
       req.body.Ubicacion
     ];
-
     // Ejecutar la consulta para detalleproductoferreteria
+    console.log('detalleProductoValues', detalleProductoValues)
     await connection.execute(detalleProductoSql, detalleProductoValues);
     const eliminarMedida = `DELETE FROM
                               medida
@@ -1103,11 +1132,84 @@ export const postUpdateProduct = async (req, res) => {
           entry.UMedida,
           entry.PVentaUM
         ];
+        console.log('detalleMedidaValues', detalleMedidaValues)
         return connection.execute(detalleMedidaSql, detalleMedidaValues);
       });
       await Promise.all(medidaPromises);
     }
     // Confirmar la transacción
+    await connection.commit();
+    res.status(200).json({ message: 'Transacción completada con éxito' });
+  } catch (error) {
+    console.log(error);
+    await connection.rollback();
+    res.status(500).json(error);
+  } finally {
+    await connection.end();
+  }
+};
+
+export const postAddProduct = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  try {
+    //Fourth query of the consecutive of the new product in entradas but the inner consecutive
+    const [codInternoRows] = await connection.query("SELECT IFNULL(MAX(CodInterno)+1,0) AS NextCodInterno FROM entradas WHERE IdFerreteria = ?", [req.body.IdFerreteria]);
+    const NextCodInterno = codInternoRows[0].NextCodInterno;
+    //Add to the entradas table
+    const addProductData = `INSERT INTO
+                                    entradas
+                                    (CodInterno,
+                                    IdFerreteria,
+                                    ConsecutivoProd,
+                                    Cantidad,
+                                    Cod,
+                                    Descripcion,
+                                    PCosto,
+                                    PCostoLP,
+                                    Fecha,
+                                    Iva,
+                                    CodResponsable,
+                                    Responsable,
+                                    Motivo,
+                                    ConsecutivoCompra,
+                                    Medida,
+                                    UMedida) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    const values = [
+      NextCodInterno,
+      req.body.IdFerreteria,
+      req.body.ConsecutivoProd,
+      req.body.Cantidad,
+      req.body.Cod,
+      req.body.Descripcion,
+      req.body.PCosto,
+      req.body.PCostoLP,
+      req.body.Fecha,
+      req.body.Iva,
+      req.body.CodResponsable,
+      req.body.Responsable,
+      req.body.Motivo,
+      req.body.ConsecutivoCompra,
+      req.body.Medida,
+      req.body.UMedida
+    ]
+    //console.log('values', values)
+    await connection.execute(addProductData, values);
+    //Modify the PCosto and the PVenta
+    const updateProductData = `UPDATE
+                                    detalleproductoferreteria
+                                SET
+                                    PCosto = ?,
+                                    PVenta = ? 
+                                WHERE
+                                    Consecutivo = ? AND IdFerreteria = ?`
+    const updateProductValues = [
+      req.body.PCosto,
+      req.body.PVenta,
+      req.body.ConsecutivoProd,
+      req.body.IdFerreteria
+    ]
+    //console.log('updateProductValues', updateProductValues)
+    await connection.execute(updateProductData, updateProductValues);          
     await connection.commit();
     res.status(200).json({ message: 'Transacción completada con éxito' });
   } catch (error) {
@@ -1183,8 +1285,12 @@ export const postUpdateInventory = async(req, res) => {
                                           CodResponsable,
                                           Responsable,
                                           Motivo,
-                                          ConsecutivoCompra)
+                                          ConsecutivoCompra,
+                                          Medida,
+                                          UMedida)
                                       VALUES (?,
+                                              ?,
+                                              ?,
                                               ?,
                                               ?,
                                               ?,
@@ -1211,7 +1317,9 @@ export const postUpdateInventory = async(req, res) => {
                         req.body.CodResponsable,
                         req.body.Responsable,
                         req.body.Motivo,
-                        0]
+                        0,
+                        '',
+                        1]
       await connection.execute(sql1, values1);
     } else if (difference < 0) { 
       const sql2 = `INSERT INTO salidas (ConsecutivoVenta,
@@ -1226,8 +1334,12 @@ export const postUpdateInventory = async(req, res) => {
                                          Responsable,
                                          Iva,
                                          Motivo,
-                                         Fecha)
+                                         Fecha,
+                                         Medida,
+                                         UMedida)
                                 VALUES (?,
+                                        ?,
+                                        ?,
                                         ?,
                                         ?,
                                         ?,
@@ -1252,7 +1364,9 @@ export const postUpdateInventory = async(req, res) => {
                       req.body.Responsable,
                       0,
                       req.body.Motivo,
-                      req.body.Fecha]
+                      req.body.Fecha,
+                      '',
+                      1]
     //console.log("values2: ", values2)
     await connection.execute(sql2, values2);
     }
@@ -1305,6 +1419,7 @@ export const getShoppingList = async (req, res) => {
                                                       ca.Categoria,
                                                       pro.Detalle,
                                                       pro.Iva,
+                                                      pro.SVenta,
                                                       pro.Clase
                                                     FROM
                                                       productos AS pro
@@ -1316,7 +1431,7 @@ export const getShoppingList = async (req, res) => {
                                                       LEFT JOIN (
                                                     SELECT 
                                                         ConsecutivoProd,
-                                                        SUM(Cantidad) AS entradas 
+                                                        SUM(Cantidad/UMedida) AS entradas 
                                                     FROM 
                                                         entradas 
                                                     GROUP BY 
@@ -1325,7 +1440,7 @@ export const getShoppingList = async (req, res) => {
                                                       LEFT JOIN (
                                                     SELECT 
                                                         ConsecutivoProd, 
-                                                        SUM(Cantidad) AS salidas 
+                                                        SUM(Cantidad/UMedida) AS salidas 
                                                     FROM 
                                                         salidas 
                                                     GROUP BY 
@@ -1371,7 +1486,6 @@ export const getShoppingList = async (req, res) => {
       }
       return pro;
     });
-      console.log(updatedLowInventory )
       res.status(200).json(updatedLowInventory);
             
   } else {
@@ -1523,7 +1637,6 @@ export const getShoppingList = async (req, res) => {
           return { ...pro, ...additionalData };
       }
     );
-    //console.log(updatedProductList )
     res.status(200).json(updatedProductList);
   }
   } catch (error) {
@@ -1862,10 +1975,164 @@ export const putUpdateVefied = async (req, res) => {
 export const putNewSale = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
-      //Start the transaction
-      await connection.beginTransaction();
-      const Cufe = "000"
-      const FacturaElectronica = "000"
+      let Cufe = '';
+      let FacturaElectronica = '';
+      let responceElectronicData = null;
+      //* For the electronic facturatión
+      console.log('Electronic: ',req.body.Electronic)
+      if (req.body.Electronic) {
+        const FFacturationData = {
+          "FNResolicion": "18760000001",
+          "FInicio": "2019-01-19",
+          "FFinal": "2030-01-19",
+          "FPrefijo": "SETP",
+          "NumeroInicial": "990000000",
+          "NumeroFinal": "995000000",
+        }
+        const ElectronicData = {
+              "Ambiente": 2,
+              "Resolucion": {
+                  "NumeroResolucion": FFacturationData.FNResolicion,
+                  "FechaInicio": FFacturationData.FInicio,
+                  "FechaFinal": FFacturationData.FFinal,
+                  "Prefijo": FFacturationData.FPrefijo,
+                  "NumeroInicial": FFacturationData.FInicio,
+                  "NumeroFinal": FFacturationData.FFinal,
+                  "ClaveTecnica": req.body.ClaveTecnicaColtek
+              },
+              "Factura": FFacturationData.FPrefijo + FFacturationData.UFactura + 1,
+              "Fecha": req.body.RCData.Fecha,
+              "Hora": req.body.RCData.Fecha,
+              "Observacion": "Observacion",
+              "FormaDePago": "1",
+              "MedioDePago": "41",
+              "FechaVencimiento": "2019-06-30",
+              "CantidadArticulos": req.body.Order.length,
+              "Cliente": {
+                  "TipoPersona": 1,
+                  "NombreTipoPersona": "Persona Jurídica",
+                  "TipoDocumento": 31,
+                  "NombreTipoDocumento": "Documento de identificación extranjero",
+                  "Documento": req.body.NitCC,
+                  "Dv": 3,
+                  "NombreComercial": "OPTICAS GMO COLOMBIA SAS",
+                  "RazonSocial": "OPTICAS GMO COLOMBIA SAS",
+                  "Telefono": req.body.Telefono1,
+                  "Correo": req.body.Customer.Correo,
+                  "Departamento": {
+                  "Codigo": 11,
+                  "Nombre": "Bogota"
+                  },
+                  "Ciudad": {
+                  "Codigo": 11001,
+                  "Nombre": "Bogota, DC."
+                  },
+                  "Direccion": req.body.Customer.Direccion,
+                  "ResponsabilidadFiscal": "R-99-PN",
+                  "DetallesTributario": {
+                  "Codigo": "01",
+                  "Nombre": "IVA"
+                  }
+              },
+              "Impuestos": {
+                  "IVA": {
+                  "Codigo": "01",
+                  "Total": total - total/1.19,
+                  "porcentajes": [
+                      {
+                      "porcentaje": "19",
+                      "Base": total/1.19,
+                      "Total": total - total/1.19
+                      }
+                  ]
+                  }
+              }
+        }
+              
+        let articulos = []
+        let totalBruto = 0;
+        let total = 0;
+        let totalImpuestos = 0;
+  
+        for (const product of req.body.Order) {
+          const detProduct = {
+            "CodigoInterno": product.Consecutivo,
+            "Nombre": product.Descripcion,
+            "Cantidad": product.Cantidad,
+            "PrecioUnitario": product.PVenta,
+            "Total": product.Cantidad * product.PVenta,
+            "Regalo": "false",
+            "DescuentoYRecargos": [],
+            "Impuestos": {
+                      "IVA": {
+                      "Codigo": "01",
+                      "Total": product.Cantidad * product.PVenta,
+                      "porcentajes": [
+                          {
+                          "porcentaje": product.Iva,
+                          "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
+                          "Total": product.Cantidad * product.PVenta
+                          }
+                        ]
+                      }
+            }
+          }
+          totalBruto += ((product.Cantidad * product.PVenta)/(1+product.Iva/100))
+          total += product.Cantidad * product.PVenta
+          totalImpuestos += product.Cantidad * product.PVenta * (product.Iva/100)
+          articulos.push(detProduct)
+        }
+        const Totales = {
+          Bruto: totalBruto,
+          "BaseImpuestos": totalBruto,
+          "Descuentos": 0,
+          "Cargos": 0,
+          "APagar": total,
+          "Impuestos": totalImpuestos
+        }
+        ElectronicData.Articulos = articulos
+        ElectronicData.Totales = Totales
+  
+        responceElectronicData = [
+          {
+            "": "Respuesta de Documento Aprobado por la DIAN",
+            "status": true,
+            "Result": {
+              "IsValid": "true",
+              "Codigo": "SETP990000001",
+              "Url_Pdf": "http://empresa.example.com/Facturacion/empresa/Facturas/18760000001/SETP990000001/SETP990000001.pdf",
+              "StatusCode": "00",
+              "StatusDescription": "Procesado Correctamente.",
+              "CufeCude": "665bf3f7f7a148f6d3e9c4816f7683562d204f53a7c578008fd5467daec87593a64ad83580874d9ba105f0fc0f2de63e",
+              "Errores": ""
+            }
+          },
+          {
+            "": "Respuesta de Documento Rechazado por la DIAN",
+            "status": true,
+            "Result": {
+              "IsValid": "false",
+              "Codigo": "SETP9900000001",
+              "StatusCode": "99",
+              "StatusDescription": "Validación contiene errores en campos mandatorios.",
+              "Errores": [
+                "Regla: FAU06, Rechazo: Valor Bruto más tributos es diferente a Valor Bruto de la factura",
+                "Regla: FAD09c, Rechazo: La fecha de emision es anterior en mas de 10 dias de la fecha actual",
+                "Regla: FAS02, Rechazo: (R) Valor total de un tributo no corresponde a la suma de todas las informaciones correspondientes",
+                "Regla: SinCódigo, Notificación: La validación del estado del RUT próximamente estará disponible."
+              ]
+            }
+          }
+        ]
+        //* End of the electronic facturatión
+        //Start the transaction
+        await connection.beginTransaction();
+        if (responceElectronicData[0].Result.IsValid === "true") {
+          Cufe = responceElectronicData[0].Result.CufeCude
+          FacturaElectronica = responceElectronicData[0].Result.Codigo
+        }
+        //console.log('electronicData',ElectronicData)
+      }
 
       //!To the inter database
       //First insertion to the table cabeceraventas
@@ -1884,7 +2151,7 @@ export const putNewSale = async (req, res) => {
                        req.body.RCData.IdFerreteria,
                        FacturaElectronica,
                        Cufe]
-      //console.log('values1: ', values1)
+      console.log('values1', values1)
       await connection.execute(sql1, values1);
 
       //Second query of the consecutive of the new product
@@ -1940,7 +2207,7 @@ export const putNewSale = async (req, res) => {
             entry.Medida,
             entry.UMedida
         ];
-        console.log("values2: ", values2)
+        console.log('values2', values2)
         await connection.execute(sql2, values2);
       }
       //Insertion to the entradadedinero table
@@ -1976,11 +2243,17 @@ export const putNewSale = async (req, res) => {
           false,
           true
         ]
-      console.log('value3: ', values3)
+      console.log('values3', values3)
       await connection.execute(sql3, values3);
+
+      let Data = req.body
+      if (responceElectronicData && responceElectronicData[0].Result.IsValid === 'true') {
+        Data.Result = responceElectronicData[0].Result
+      }
+      console.log('Data', Data)
       // Confirm the transaction
       await connection.commit();
-      res.status(200).json({ message: 'Transacción completada con éxito' });
+      res.status(200).json(Data);
   } catch (error) {
       // In case of error, the transaction is returned
       await connection.rollback();
@@ -1996,25 +2269,61 @@ export const getSalesPerDay = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
     const [salesList] = await connection.query(`SELECT
-                                                    cv.Consecutivo,
-                                                    cv.Folio,
-                                                    cv.IdCliente,
-                                                    cli.Nombre,
-                                                    cli.Apellido,
-                                                    cli.Telefono1,
-                                                    cli.Correo,
-                                                    cli.Direccion,
-                                                    cv.Fecha,
-                                                    cv.CodResponsable,
-                                                    cv.FacturaElectronica,
-                                                    cv.Cufe
-                                                  FROM
-                                                    cabeceraventas AS cv
-                                                  JOIN
-                                                    clientes AS cli ON cv.IdCliente = cli.Consecutivo
-                                                  WHERE
-                                                    cv.IdFerreteria = ? AND DATE(cv.Fecha) = ?
-                                                  ORDER BY cv.Folio DESC`, [req.body.IdFerreteria, req.body.Fecha]);
+                                                  cv.Consecutivo,
+                                                  cv.Folio,
+                                                  cv.IdCliente,
+                                                  CASE 
+                                                WHEN cv.IdCliente = 0 THEN '222222222222'
+                                                ELSE cli.NitCC
+                                                  END AS NitCC,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN 'Consumidor final'
+                                                ELSE cli.Nombre
+                                                  END AS Nombre,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN ''
+                                                ELSE cli.Apellido
+                                                  END AS Apellido,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN ''
+                                                ELSE cli.Telefono1
+                                                  END AS Telefono1,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN ''
+                                                  ELSE cli.Telefono2
+                                                END AS Telefono2,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN ''
+                                                  ELSE cli.Barrio
+                                                END AS Barrio,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN ''
+                                                  ELSE cli.Correo
+                                                END AS Correo,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN ''
+                                                  ELSE cli.Direccion
+                                                END AS Direccion,
+                                                CASE 
+                                                WHEN cv.IdCliente = 0 THEN 0
+                                                  ELSE cli.Tipo
+                                                END AS Tipo,
+                                                  cv.Fecha,
+                                                  cv.CodResponsable,
+                                                  cv.FacturaElectronica,
+                                                  cv.Cufe,
+                                                  flu.Efectivo,
+                                                  flu.Transferencia
+                                              FROM
+                                                  cabeceraventas AS cv
+                                              LEFT JOIN
+                                                  clientes AS cli ON cv.IdCliente = cli.Consecutivo
+                                              LEFT JOIN
+                                                  flujodedinero AS flu ON flu.ConsecutivoCV = cv.Consecutivo
+                                              WHERE
+                                                  cv.IdFerreteria = ? AND DATE(cv.Fecha) = ?
+                                              GROUP BY cv.Consecutivo
+                                              ORDER BY cv.Folio DESC;`, [req.body.IdFerreteria, req.body.Fecha]);
     const [salesDetail] = await connection.query(`SELECT
                                                       sa.ConsecutivoVenta AS Consecutivo,
                                                       sa.ConsecutivoProd,
@@ -2039,16 +2348,27 @@ export const getSalesPerDay = async (req, res) => {
                                                           entradas
                                                       WHERE
                                                           Motivo = 'Devolución mercancia'
+                                                          AND DATE(Fecha) = ?
+                                                    AND ConsecutivoCompra <> 0
                                                       GROUP BY
                                                           ConsecutivoProd, Medida, ConsecutivoCompra
-                                                  ) AS en ON en.ConsecutivoProd = sa.ConsecutivoProd AND en.Medida = sa.Medida AND sa.ConsecutivoVenta = en.ConsecutivoCompra
+                                                  ) AS en ON en.ConsecutivoProd = sa.ConsecutivoProd 
+                                                          AND en.Medida = sa.Medida 
+                                                          AND sa.ConsecutivoVenta = en.ConsecutivoCompra
                                                   WHERE
                                                       sa.IdFerreteria = ?
                                                       AND DATE(sa.Fecha) = ?
                                                       AND sa.ConsecutivoVenta <> 0
                                                   GROUP BY
                                                       sa.ConsecutivoProd,
-                                                      sa.Medida`, [req.body.IdFerreteria, req.body.Fecha]);
+                                                      sa.Medida,
+                                                      sa.ConsecutivoVenta,
+                                                      sa.Cod,
+                                                      sa.Descripcion,
+                                                      sa.UMedida,
+                                                      sa.VrUnitario,
+                                                      sa.VrCosto,
+                                                      sa.Iva`, [req.body.Fecha, req.body.IdFerreteria, req.body.Fecha]);
     // Crear un mapa para agrupar las medidas por Consecutivo
     const rowsMap = salesDetail.reduce((map, row) => {
       if (!map[row.Consecutivo]) {
@@ -2105,7 +2425,7 @@ export const getCashFlow = async (req, res) => {
                                                   WHERE
                                                     IdFerreteria = ?
                                                   AND
-                                                    DATE(Fecha) = ?
+                                                    DATE(flu.Fecha) = ?
                                                   AND
                                                     ConsecutivoCV = 0`, [req.body.IdFerreteria,
                                                                          req.body.Fecha])
@@ -2265,7 +2585,6 @@ export const putCancelTheSale = async (req, res) => {
                               '',
                               true,
                               true]
-    console.log('valoresMoneyFlow: ', valoresMoneyFlow)
     await connection.query(toMoneyFlow, valoresMoneyFlow);
     
     const returnProducts = `INSERT INTO
@@ -2304,7 +2623,6 @@ export const putCancelTheSale = async (req, res) => {
                                 req.body.Consecutivo,
                                 product.Medida,
                                 product.UMedida]
-        console.log('valoresEntradas: ', valoresEntradas)
         await connection.query(returnProducts, valoresEntradas);
       }
     }
@@ -2343,7 +2661,6 @@ export const getCRDetail = async (req, res) => {
         // agrega otros datos si es necesario
       };
     });
-    console.log(dictionary);
     res.status(200).json(dictionary)
   } catch (error) {
     console.error("Error en la función getCRDetail: ", error);
@@ -2359,7 +2676,8 @@ export const getSalesByCategory = async (req, res) => {
   try {
     const [salesByCategory] = await connection.query(`SELECT
                                                         ca.Categoria,
-                                                        SUM(Cantidad * Vrunitario) - IFNULL(en.Devoluciones, 0) AS ventas
+                                                        SUM(Cantidad * Vrunitario) AS ventas,
+                                                        SUM(Cantidad * VrCosto) - IFNULL(en.Devoluciones, 0) AS Costos
                                                       FROM
                                                         salidas AS sa
                                                       LEFT JOIN
@@ -2426,6 +2744,8 @@ export const getBestProducts = async (req, res) => {
     await connection.end();
   }
 }
+
+
 
 //Other functions
 export const bestRoute = async (req, res) => {
@@ -2555,6 +2875,117 @@ export const bestRoute = async (req, res) => {
   }
 }*/
 
+export const ChechUserDataPos = async (req, res) => {
+  const connection = await connect(); // Conectarse a la base de datos
+  try {
+    // Buscar los datos del cliente en la base de datos
+    const [rows] = await connection.query(`SELECT Cli.Cod,
+                                                  Cli.Ferreteria,
+                                                  Cli.Contacto,
+                                                  Cli.Direccion,
+                                                  Cli.Telefono,
+                                                  Cli.Cel,
+                                                  Cli.Email,
+                                                  Cli.Contraseña,
+                                                  Cli.Nit,
+                                                  Co.Nombre As Asesor
+                                          FROM
+                                            clientes AS Cli
+                                          LEFT JOIN colaboradores AS Co ON Cli.CodVendedor = Co.Cod
+                                          WHERE Cli.Email = ?`, [req.body.EmailUser]);
+
+    // Verificar si se encontró al usuario
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = rows[0];
+    const dbPassword = user.Contraseña;
+
+    // Verificar si la contraseña ingresada coincide con la almacenada
+    const passwordMatches = await bcrypt.compare(req.body.Password, dbPassword);
+    
+    if (!passwordMatches) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Si la contraseña coincide, generar el token JWT
+    const token = jwt.sign({ userId: user.Cod }, process.env.SECRET, { expiresIn: '24h' });
+    user.token = token;
+
+    // Eliminar la contraseña del objeto antes de enviar la respuesta
+    delete user.Contraseña;
+
+    // Guardar el token en la base de datos
+    const saveTokenQuery = `UPDATE tokens SET Token = ? WHERE Cod = ?`;
+    await connection.execute(saveTokenQuery, [token, user.Cod]);
+
+    const [Resolucion] = await connection.query(`SELECT
+                                                  NumeroResolucion,
+                                                  FechaInicio,
+                                                  FechaFinal,
+                                                  Prefijo,
+                                                  NumeroInicial,
+                                                  NumeroFinal,
+                                                  ClaveTecnica
+                                                FROM
+                                                  resoluciones
+                                                WHERE
+                                                  IdFerreteria = ?`, [rows[0]['Cod']]);
+    user.Resolucion = Resolucion;
+
+    // Enviar la información del usuario y el token al cliente
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    // Cerrar la conexión a la base de datos
+    await connection.end();
+  }
+};
 
 
+export const verifyToken = async (req, res) => {
+  const connection = await connect(); // Conectarse a la base de datos
+  try {
+    // Obtener el token del encabezado Authorization
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Asume formato "Bearer TOKEN"
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    // Verificar el token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.SECRET);
+    } catch (error) {
+      return res.status(403).json({ authorization: false });
+      // Capturar específicamente los errores de verificación del token
+      /*if (error.name === 'TokenExpiredError') {
+        return res.status(403).json({ error: 'Token expired' });
+      } else if (error.name === 'JsonWebTokenError') {
+        return res.status(403).json({ error: 'Invalid token' });
+      } else {
+        return res.status(403).json({ error: 'Token verification failed' });
+      }*/
+    }
+    // Buscar el token en la base de datos
+    const [rows] = await connection.query('SELECT Token FROM tokens WHERE Token = ? AND Cod = ?', [token, decoded.userId]);
+
+    if (rows.length === 0) {
+      return res.status(403).json({ authorization: false });
+    } else {
+      return res.status(200).json({ authorization: true})
+    }
+  } catch (error) {
+    console.error(error);
+    //res.status(403).json({ error: 'Invalid token' });
+    return res.status(403).json({ authorization: false });
+  } finally {
+    // Cerrar la conexión a la base de datos
+    await connection.end();
+  }
+};
 

@@ -44,7 +44,10 @@ import { getTasks,
         putCancelTheSale,
         getCRDetail,
         getSalesByCategory,
-        getBestProducts} from '../controllers/tasks';
+        getBestProducts,
+        ChechUserDataPos,
+        verifyToken,
+        postAddProduct} from '../controllers/tasks';
 
 
 const router = Router();
@@ -137,6 +140,10 @@ router.post('/tasks/bestroute', bestRoute)
 
 
 //to the siver pos%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//*All about the aurotitation
+router.post('/tasks/loginPos', ChechUserDataPos);
+
+router.post('/tasks/verifytoken', verifyToken);
 //*All retalet to clients
 router.post('/pos/newclient', putNewClient);
 
@@ -158,6 +165,8 @@ router.post('/pos/postupdateinventory', postUpdateInventory);
 router.get('/pos/subcategories', getSubCategories);
 
 router.post('/pos/shoppinglist', getShoppingList);
+
+router.post('/pos/addproduct', postAddProduct);
 
 //* All about purchases
 router.post('/pos/purchaseList', getPurchaseList);
