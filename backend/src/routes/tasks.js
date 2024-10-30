@@ -47,7 +47,9 @@ import { getTasks,
         getBestProducts,
         ChechUserDataPos,
         verifyToken,
-        postAddProduct} from '../controllers/tasks';
+        postAddProduct,
+        getDataLoginColtek,
+        getClientOcupation} from '../controllers/tasks';
 
 
 const router = Router();
@@ -199,6 +201,10 @@ router.post('/pos/crdetail', getCRDetail);
 router.post('/pos/bestProducts', getBestProducts);
 
 router.post('/pos/salesbycategory', getSalesByCategory)
+
+router.get('/tasks/datalogincoltek', getDataLoginColtek)
+
+router.get('/pos/clientocupation', getClientOcupation)
 //*Other Functions
 //router.post('/pos/inserSivarList', inserSivarList);
 
