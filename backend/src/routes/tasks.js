@@ -49,7 +49,8 @@ import { getTasks,
         verifyToken,
         postAddProduct,
         getDataLoginColtek,
-        getClientOcupation} from '../controllers/tasks';
+        getClientOcupation,
+        postToRemsionToElectronic} from '../controllers/tasks';
 
 
 const router = Router();
@@ -205,6 +206,8 @@ router.post('/pos/salesbycategory', getSalesByCategory)
 router.get('/tasks/datalogincoltek', getDataLoginColtek)
 
 router.get('/pos/clientocupation', getClientOcupation)
+
+router.post('/pos/toremsiontoelectronic', postToRemsionToElectronic)
 //*Other Functions
 //router.post('/pos/inserSivarList', inserSivarList);
 

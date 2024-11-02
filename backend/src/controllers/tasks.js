@@ -3,6 +3,7 @@ import { connect, connectDBSivarPos } from "../database";
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fetch = require('node-fetch');
+const ambiente = 2
 
 
 export const getTasks = async(req, res) => {
@@ -1994,7 +1995,11 @@ export const putUpdateVefied = async (req, res) => {
 
 export const postToRemsionToElectronic = async (req, res) => {
   const connection = await connectDBSivarPos();
+  const connectSivar = await connect()
   try {
+
+    let Customer = req.body
+    console.log('req.body: ', req.body)
     //To create the new electronic invoice
     const [Resolucion] = await connectSivar.query(`SELECT
                                                     NumeroResolucion,
@@ -2008,7 +2013,7 @@ export const postToRemsionToElectronic = async (req, res) => {
                                                     resoluciones
                                                   WHERE
                                                     IdFerreteria = ?`, [req.body.RCData.IdFerreteria]);
-                                                  
+    
     const [logInColtek] = await connectSivar.query(`SELECT
                                                       Api,
                                                       Usuario,
@@ -2017,9 +2022,94 @@ export const postToRemsionToElectronic = async (req, res) => {
                                                       resoluciones
                                                     WHERE
                                                       IdFerreteria = ?`, [req.body.RCData.IdFerreteria]);
-    
+    const [UfacturaRows] = await connection.query(`SELECT
+                                                    CASE 
+                                                      WHEN MAX(FacturaElectronica) IS NULL THEN 0
+                                                      WHEN MAX(FacturaElectronica) = '' THEN 0
+                                                      ELSE MAX(FacturaElectronica) + 1
+                                                    END AS UFactura
+                                                  FROM
+                                                    cabeceraventas
+                                                  WHERE
+                                                    IdFerreteria = ?`, [req.body.RCData.IdFerreteria])
+    if (UfacturaRows[0].UFactura === 0) {
+      UfacturaRows[0].UFactura = Resolucion[0].NumeroInicial
+    }
+
+    if (req.body.IdCliente != 0){
+      const [Cliente] = await connection.query(`SELECT 
+                                                    cli.Consecutivo,
+                                                    cli.Tipo,
+                                                    cli.NitCC,
+                                                    cli.Nombre,
+                                                    cli.Apellido,
+                                                    cli.Telefono1,
+                                                    cli.Telefono2,
+                                                    cli.Correo,
+                                                    cli.Direccion,
+                                                    cli.Dv,
+                                                    cli.ResFiscal
+                                                  FROM
+                                                    clientes AS cli
+                                                  WHERE
+                                                    Consecutivo = ?`, [req.body.IdCliente]);
+      console.log('CLiente', Cliente)
+      Customer = {
+                  "TipoPersona": Cliente[0].Tipo == 0 ? 2 : 1,
+                  "NombreTipoPersona": Cliente[0].Tipo ? 'Persona Natural' : 'Persona Jurídica',
+                  "TipoDocumento": Cliente[0].Tipo === 0 ? 13 : 31,
+                  "NombreTipoDocumento": Cliente[0].Tipo === 0 ? 'Cédula de ciudadanía ': 'NIT',
+                  "Documento": Cliente[0].NitCC,
+                  "Dv": Cliente[0].Dv,
+                  "NombreComercial": Cliente[0].Nombre + ' ' + Cliente[0].Apellido,
+                  "RazonSocial": Cliente[0].Nombre + ' ' + Cliente[0].Apellido,
+                  "Telefono": Cliente[0].Telefono1,
+                  "Correo": Cliente[0].Correo,
+                  "Departamento": {
+                    "Codigo": 11,
+                    "Nombre": "Bogota"
+                  },
+                  "Ciudad": {
+                    "Codigo": 11001,
+                    "Nombre": "Bogota, DC."
+                  },
+                  "Direccion": Cliente[0].Direccion,
+                  "ResponsabilidadFiscal": Cliente[0].ResFiscal,
+                  "DetallesTributario": {
+                    "Codigo": "01",
+                    "Nombre": "IVA"
+                  }
+                }
+    } else if (req.body.IdCliente == 0) {
+      Customer =  {
+                  "TipoPersona": req.body.Customer.TipoPersona,
+                  "NombreTipoPersona": req.body.Customer.NombreTipoPersona,
+                  "TipoDocumento": req.body.Customer.TipoDocumento,
+                  "NombreTipoDocumento": req.body.Customer.NombreTipoDocumento,
+                  "Documento": req.body.Customer.NitCC,
+                  "Dv": req.body.Customer.Dv,
+                  "NombreComercial": req.body.Customer.Nombre + " " + req.body.Customer.Apellido,
+                  "RazonSocial": req.body.Customer.Nombre + " " + req.body.Customer.Apellido,
+                  "Telefono": req.body.Customer.Telefono1,
+                  "Correo": req.body.Customer.Correo,
+                  "Departamento": {
+                                    "Codigo": 11,
+                                    "Nombre": "Bogota"
+                                  },
+                  "Ciudad": {
+                              "Codigo": 11001,
+                              "Nombre": "Bogota, DC."
+                            },
+                  "Direccion": req.body.Customer.Direccion,
+                  "ResponsabilidadFiscal": req.body.Customer.ResFiscal,
+                  "DetallesTributario": {
+                                          "Codigo": "01",
+                                          "Nombre": "IVA"
+                                        }
+              }
+    }
     const ElectronicData = {
-            "Ambiente": 2,
+            "Ambiente": ambiente,
             "Resolucion": Resolucion[0],
             "Factura": Resolucion[0].Prefijo + UfacturaRows[0].UFactura,
             "Fecha": req.body.RCData.Fecha.split(' ')[0],
@@ -2029,34 +2119,8 @@ export const postToRemsionToElectronic = async (req, res) => {
             "MedioDePago": req.body.MedioDePagoColtek,
             "FechaVencimiento": req.body.RCData.Fecha.split(' ')[0],
             "CantidadArticulos": req.body.Order.length,
-            "Cliente": {
-                "TipoPersona": req.body.Customer.TipoPersona,
-                "NombreTipoPersona": req.body.Customer.NombreTipoPersona,
-                "TipoDocumento": req.body.Customer.TipoDocumento,
-                "NombreTipoDocumento": req.body.Customer.NombreTipoDocumento,
-                "Documento": req.body.Customer.NitCC,
-                "Dv": req.body.Customer.NitCC.split(' ')[1],
-                "NombreComercial": req.body.Customer.Nombre + " " + req.body.Customer.Apellido,
-                "RazonSocial": req.body.Customer.Nombre + " " + req.body.Customer.Apellido,
-                "Telefono": req.body.Customer.Telefono1,
-                "Correo": req.body.Customer.Correo,
-                "Departamento": {
-                                  "Codigo": 11,
-                                  "Nombre": "Bogota"
-                                },
-                "Ciudad": {
-                            "Codigo": 11001,
-                            "Nombre": "Bogota, DC."
-                          },
-                "Direccion": req.body.Customer.Direccion,
-                "ResponsabilidadFiscal": req.body.Customer.ResFiscal,
-                "DetallesTributario": {
-                                        "Codigo": "01",
-                                        "Nombre": "IVA"
-                                      }
-            }
+            "Cliente": Customer
       }
-            
       let articulos = []
       let totalBruto = 0;
       let total = 0;
@@ -2064,9 +2128,9 @@ export const postToRemsionToElectronic = async (req, res) => {
       let detImpuestos = {}
       for (const product of req.body.Order) {
         const detProduct = {
-          "CodigoInterno": product.Consecutivo,
+          "CodigoInterno": product.ConsecutivoProd,
           "Nombre": product.Descripcion,
-          "Cantidad": product.CantidadSa - product.CantidadEn,
+          "Cantidad": product.Cantidad,
           "PrecioUnitario": product.PVenta,
           "Total": product.Cantidad * product.PVenta,
           "Regalo": "false",
@@ -2104,7 +2168,7 @@ export const postToRemsionToElectronic = async (req, res) => {
         articulos.push(detProduct)
       }
       const Totales = {
-        Bruto: totalBruto,
+        "Bruto": totalBruto,
         "BaseImpuestos": totalBruto,
         "Descuentos": 0,
         "Cargos": 0,
@@ -2114,19 +2178,47 @@ export const postToRemsionToElectronic = async (req, res) => {
       ElectronicData.Articulos = articulos
       ElectronicData.Totales = Totales
       ElectronicData.Impuestos = detImpuestos
-    /*const sql1 = `UPDATE
-                      comprasporingresar
+    //console.log('ElectronicData', ElectronicData)
+    //Para la factura electronica
+    const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
+      method: 'POST',
+      headers: { Accept: 'application/json',
+                         'Content-Type': 'application/json',
+                         'Authorization': `Bearer ${req.body.tokenColtek}`},
+      body: JSON.stringify(ElectronicData)
+    })
+    const responceElectronicData = await resFElectronica.json()
+    console.log(responceElectronicData)
+
+    if (responceElectronicData.status){
+      const sql1 = `UPDATE
+                      cabeceraventas
                     SET
-                      verificado = ?
+                      Prefijo = ?,
+                      FacturaElectronica = ?,
+                      Cufe = ?,
+                      Resolucion = ?
                     WHERE
-                      IdFerreteria = ? AND NPrefactura = ? AND cod = ?`
-      const values = [req.body.Verificado,
-                      req.body.IdFerreteria,
-                      req.body.NPreFactura,
-                      req.body.Cod];
-      
-      await connection.execute(sql1, values)*/
-      res.status(200).json({ message: 'Transacción completada con éxito' });
+                      IdFerreteria = ? AND Consecutivo = ?`
+      const values = [Resolucion[0].Prefijo,
+                      UfacturaRows[0].UFactura,
+                      responceElectronicData.Result.CufeCude,
+                      Resolucion[0].NumeroResolucion,
+                      req.body.RCData.IdFerreteria,
+                      req.body.Consecutivo
+                    ];
+      //console.log('values: ', values);
+      await connection.execute(sql1, values)
+
+      let Data = {...req.body}
+      if (responceElectronicData && responceElectronicData.Result.IsValid === 'true') {
+        Data.Result = responceElectronicData.Result
+      }
+      console.log('Data', Data)
+      res.status(200).json(Data);
+    } else {
+      res.status(401).json({ message: 'Ocurrio un error al realizar la transacción' });
+    }
       connection.end();
   } catch (error) {
       console.log(error);
@@ -2208,15 +2300,6 @@ export const putNewSale = async (req, res) => {
                                                         resoluciones
                                                       WHERE
                                                         IdFerreteria = ?`, [req.body.RCData.IdFerreteria]);
-        
-        /*const resResolucion = await fetch(`${logInColtek[0].Api}/api/v1/consulta/resoluciones`,{
-            method: 'GET',
-            headers: { Accept: 'application/json',
-                               'Content-Type': 'application/json',
-                               'Authorization': `Bearer ${req.body.tokenColtek}`}
-        })
-        const Resolucion = await resResolucion.json()
-        console.log('Resolucion: ', Resolucion)*/
 
         const [UfacturaRows] = await connection.query(`SELECT
                                                           CASE 
@@ -2232,8 +2315,10 @@ export const putNewSale = async (req, res) => {
           UfacturaRows[0].UFactura = Resolucion[0].NumeroInicial
         }
         console.log('Ufactura[0]: ', UfacturaRows[0].UFactura)
+
+
         const ElectronicData = {
-              "Ambiente": 2,
+              "Ambiente": ambiente,
               "Resolucion": Resolucion[0],
               "Factura": Resolucion[0].Prefijo + UfacturaRows[0].UFactura,
               "Fecha": req.body.RCData.Fecha.split(' ')[0],
@@ -2249,7 +2334,7 @@ export const putNewSale = async (req, res) => {
                   "TipoDocumento": req.body.Customer.TipoDocumento,
                   "NombreTipoDocumento": req.body.Customer.NombreTipoDocumento,
                   "Documento": req.body.Customer.NitCC,
-                  "Dv": req.body.Customer.NitCC.split(' ')[1],
+                  "Dv": req.body.Customer.Dv,
                   "NombreComercial": req.body.Customer.Nombre + " " + req.body.Customer.Apellido,
                   "RazonSocial": req.body.Customer.Nombre + " " + req.body.Customer.Apellido,
                   "Telefono": req.body.Customer.Telefono1,
@@ -2328,6 +2413,7 @@ export const putNewSale = async (req, res) => {
         ElectronicData.Articulos = articulos
         ElectronicData.Totales = Totales
         ElectronicData.Impuestos = detImpuestos
+        console.log("ElectronicData New Sale: ", JSON.stringify(ElectronicData))
         //Para la factura electronica
         const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
           method: 'POST',
@@ -2337,13 +2423,13 @@ export const putNewSale = async (req, res) => {
           body: JSON.stringify(ElectronicData)
         })
         responceElectronicData = await resFElectronica.json()
+        console.log("responceElectronicData New Sale: ", JSON.stringify(responceElectronicData))
         //Start the transaction
         await connection.beginTransaction();
         if (responceElectronicData.Result.IsValid === "true") {
           Prefijo = Resolucion[0].Prefijo
           Cufe = responceElectronicData.Result.CufeCude
           FacturaElectronica = UfacturaRows[0].UFactura
-
         }
       }
 
@@ -2367,8 +2453,9 @@ export const putNewSale = async (req, res) => {
                         Prefijo,
                         FacturaElectronica,
                         Cufe,
-                        SaveREsolucion]
-      console.log('values1', values1)
+                        SaveREsolucion
+                      ]
+      //console.log('values1', values1)
       await connection.execute(sql1, values1);
 
       //Second query of the consecutive of the new product
@@ -2424,7 +2511,7 @@ export const putNewSale = async (req, res) => {
             entry.Medida,
             entry.UMedida
         ];
-        console.log('values2', values2)
+        //console.log('values2', values2)
         await connection.execute(sql2, values2);
       }
       //Insertion to the entradadedinero table
@@ -2460,14 +2547,14 @@ export const putNewSale = async (req, res) => {
           false,
           true
         ]
-      console.log('values3', values3)
+      //console.log('values3', values3)
       await connection.execute(sql3, values3);
 
       let Data = req.body
       if (responceElectronicData && responceElectronicData.Result.IsValid === 'true') {
         Data.Result = responceElectronicData.Result
       }
-      console.log('Data', Data)
+      //console.log('Data', Data)
       // Confirm the transaction
       await connection.commit();
       res.status(200).json(Data);
@@ -2780,7 +2867,6 @@ export const putCancelTheSale = async (req, res) => {
     let Bruto = 0;
     let ImpuestosValue = 0;
     let Customer = req.body.Customer
-    console.log(req.body.Customer)
     let CantidadProductos = 0
     if (req.body.Cufe != '') {
       const [logInColtek] = await connectSivar.query(`SELECT
@@ -2888,7 +2974,7 @@ export const putCancelTheSale = async (req, res) => {
         }
       }
       const ElectronicData = {
-        Ambiente: 2,
+        Ambiente: ambiente,
         Referencia: {
           NumeroResolucion: req.body.Resolucion,
           Factura: req.body.Prefijo + req.body.FacturaElectronica,
@@ -2925,7 +3011,7 @@ export const putCancelTheSale = async (req, res) => {
           Impuestos: ImpuestosValue
         },
       }
-      console.log("ElectronicData: ", ElectronicData)
+      console.log("ElectronicData: ", JSON.stringify(ElectronicData))
       //Para la factura electronica
       const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/credito/send?debug=true&type=00`,{
         method: 'POST',
@@ -3275,6 +3361,7 @@ export const ChechUserDataPos = async (req, res) => {
                                                   Cli.Nit,
                                                   Cli.VerificacionNit AS Dv,
                                                   Cli.Tipo,
+                                                  Cli.ResFiscal,
                                                   Co.Nombre As Asesor
                                           FROM
                                             clientes AS Cli
