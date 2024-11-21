@@ -899,6 +899,7 @@ export const getProductList = async (req, res) => {
                                                     subca.SubCategoria,
                                                     subca.IdSubCategoria,
                                                     pro.Clase,
+                                                    cla.Nombre AS NombreClase,
                                                     pro.Detalle,
                                                     CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario
                                                   FROM
@@ -924,6 +925,7 @@ export const getProductList = async (req, res) => {
                                                         GROUP BY 
                                                       ConsecutivoProd
                                                     ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
+                                                    LEFT JOIN clases AS cla ON cla.Id = pro.Clase
                                                     WHERE
                                                     pro.IdFerreteria = '' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria])
       const [MedidasList] = await connection.query(`SELECT
@@ -1678,6 +1680,7 @@ export const getPurchaseList = async (req, res) => {
                                                       cc.Consecutivo,                                              
                                                       cc.ConInterno,
                                                       cc.NPreFactura,
+                                                      cc.FacturaElectronica,
                                                       cc.Estado,
                                                       cc.Fecha,
                                                       SUM(cpi.Cantidad * cpi.VrUnitarioFactura) AS Total
@@ -1896,14 +1899,8 @@ export const putModifyPurchaseProduct = async (req, res) => {
                                   PVenta,
                                   InvMinimo,
                                   InvMaximo,
-                                  Ubicacion,
-                                  Medida,
-                                  UMedida,
-                                  PrecioUM)
+                                  Ubicacion)
                                 VALUES (?,
-                                        ?,
-                                        ?,
-                                        ?,
                                         ?,
                                         ?,
                                         ?,
@@ -1980,7 +1977,6 @@ export const putUpdateVefied = async (req, res) => {
                       req.body.IdFerreteria,
                       req.body.NPreFactura,
                       req.body.Cod];
-      
       await connection.execute(sql1, values)
       res.status(200).json({ message: 'Transacción completada con éxito' });
       connection.end();
@@ -2053,7 +2049,7 @@ export const postToRemsionToElectronic = async (req, res) => {
                                                     clientes AS cli
                                                   WHERE
                                                     Consecutivo = ?`, [req.body.IdCliente]);
-      console.log('CLiente', Cliente)
+      //console.log('CLiente', Cliente)
       Customer = {
                   "TipoPersona": Cliente[0].Tipo == 0 ? 2 : 1,
                   "NombreTipoPersona": Cliente[0].Tipo ? 'Persona Natural' : 'Persona Jurídica',
@@ -2122,63 +2118,64 @@ export const postToRemsionToElectronic = async (req, res) => {
             "Cliente": Customer
       }
       let articulos = []
-      let totalBruto = 0;
-      let total = 0;
-      let totalImpuestos = 0;
-      let detImpuestos = {}
-      for (const product of req.body.Order) {
-        const detProduct = {
-          "CodigoInterno": product.ConsecutivoProd,
-          "Nombre": product.Descripcion,
-          "Cantidad": product.Cantidad,
-          "PrecioUnitario": product.PVenta,
-          "Total": product.Cantidad * product.PVenta,
-          "Regalo": "false",
-          "DescuentoYRecargos": [],
-          "Impuestos": {
-                          "IVA": {
-                          "Codigo": "01",
-                          "Total": product.Cantidad * product.PVenta,
-                          "porcentajes": [
-                              {
-                              "porcentaje": product.Iva,
-                              "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
-                              "Total": product.Cantidad * product.PVenta
-                              }
-                            ]
+        let totalBruto = 0;
+        let total = 0;
+        let totalImpuestos = 0;
+        let porcentajes = []
+        for (const product of req.body.Order) {
+          const detProduct = {
+            "CodigoInterno": product.Consecutivo,
+            "Nombre": product.Descripcion,
+            "Cantidad": product.Cantidad,
+            "PrecioUnitario": product.PVenta,
+            "Total": ((product.Cantidad * product.PVenta)/(1+(product.Iva/100))),
+            "Regalo": "false",
+            "DescuentoYRecargos": [],
+            "Impuestos": {
+                            "IVA": {
+                            "Codigo": "01",
+                            "Total": (product.Cantidad * product.PVenta)-((product.Cantidad * product.PVenta)/(1+(product.Iva/100))),
+                            "porcentajes": [
+                                {
+                                "porcentaje": product.Iva,
+                                "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
+                                "Total": (product.Cantidad * product.PVenta)-((product.Cantidad * product.PVenta)/(1+(product.Iva/100)))
+                                }
+                              ]
+                            }
                           }
-                        }
+          }
+          porcentajes.push({
+            "porcentaje": product.Iva,
+            "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
+            "Total": (product.Cantidad * product.PVenta) - (product.Cantidad * product.PVenta)/(1+(product.Iva/100))
+          })
+          totalBruto += ((product.Cantidad * product.PVenta)/(1+product.Iva/100))
+          total += product.Cantidad * product.PVenta
+          //detImpuestos.IVA.Total = total
+          //detImpuestos.IVA.porcentajes = porcentajes
+          totalImpuestos += (product.Cantidad * product.PVenta)-((product.Cantidad * product.PVenta)/(1+(product.Iva/100)))
+          articulos.push(detProduct)
         }
-        detImpuestos = {
+        const Totales = {
+          Bruto: totalBruto,
+          "BaseImpuestos": totalBruto,
+          "Descuentos": 0,
+          "Cargos": 0,
+          "APagar": total,
+          "Impuestos": totalImpuestos
+        }
+        ElectronicData.Articulos = articulos
+        ElectronicData.Totales = Totales
+        //ElectronicData.Impuestos = detImpuestos
+        ElectronicData.Impuestos = {
           "IVA": {
                 "Codigo": "01",
-                "porcentajes": [
-                    {
-                    "porcentaje": product.Iva,
-                    "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
-                    "Total": product.Cantidad * product.PVenta
-                    }
-                  ]
+                "Total": totalImpuestos,
+                "porcentajes": porcentajes
                 }
         }
-        totalBruto += ((product.Cantidad * product.PVenta)/(1+product.Iva/100))
-        total += product.Cantidad * product.PVenta
-        detImpuestos.IVA.Total = total
-        totalImpuestos += product.Cantidad * product.PVenta * (product.Iva/100)
-        articulos.push(detProduct)
-      }
-      const Totales = {
-        "Bruto": totalBruto,
-        "BaseImpuestos": totalBruto,
-        "Descuentos": 0,
-        "Cargos": 0,
-        "APagar": total,
-        "Impuestos": totalImpuestos
-      }
-      ElectronicData.Articulos = articulos
-      ElectronicData.Totales = Totales
-      ElectronicData.Impuestos = detImpuestos
-    //console.log('ElectronicData', ElectronicData)
+    console.log('ElectronicData to', JSON.stringify(ElectronicData))
     //Para la factura electronica
     const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
       method: 'POST',
@@ -2188,7 +2185,7 @@ export const postToRemsionToElectronic = async (req, res) => {
       body: JSON.stringify(ElectronicData)
     })
     const responceElectronicData = await resFElectronica.json()
-    console.log(responceElectronicData)
+    console.log('responceElectronicData', JSON.stringify(responceElectronicData))
 
     if (responceElectronicData.status){
       const sql1 = `UPDATE
@@ -2314,7 +2311,7 @@ export const putNewSale = async (req, res) => {
         if (UfacturaRows[0].UFactura === 0) {
           UfacturaRows[0].UFactura = Resolucion[0].NumeroInicial
         }
-        console.log('Ufactura[0]: ', UfacturaRows[0].UFactura)
+        //console.log('Ufactura[0]: ', UfacturaRows[0].UFactura)
 
 
         const ElectronicData = {
@@ -2361,45 +2358,40 @@ export const putNewSale = async (req, res) => {
         let total = 0;
         let totalImpuestos = 0;
         let detImpuestos = {}
+        let porcentajes = []
         for (const product of req.body.Order) {
           const detProduct = {
             "CodigoInterno": product.Consecutivo,
             "Nombre": product.Descripcion,
             "Cantidad": product.Cantidad,
             "PrecioUnitario": product.PVenta,
-            "Total": product.Cantidad * product.PVenta,
+            "Total": ((product.Cantidad * product.PVenta)/(1+(product.Iva/100))),
             "Regalo": "false",
             "DescuentoYRecargos": [],
             "Impuestos": {
                             "IVA": {
                             "Codigo": "01",
-                            "Total": product.Cantidad * product.PVenta,
+                            "Total": (product.Cantidad * product.PVenta)-((product.Cantidad * product.PVenta)/(1+(product.Iva/100))),
                             "porcentajes": [
                                 {
                                 "porcentaje": product.Iva,
                                 "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
-                                "Total": product.Cantidad * product.PVenta
+                                "Total": (product.Cantidad * product.PVenta)-((product.Cantidad * product.PVenta)/(1+(product.Iva/100)))
                                 }
                               ]
                             }
                           }
           }
-          detImpuestos = {
-            "IVA": {
-                  "Codigo": "01",
-                  "porcentajes": [
-                      {
-                      "porcentaje": product.Iva,
-                      "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
-                      "Total": product.Cantidad * product.PVenta
-                      }
-                    ]
-                  }
-          }
+          porcentajes.push({
+            "porcentaje": product.Iva,
+            "Base": (product.Cantidad * product.PVenta)/(1+(product.Iva/100)),
+            "Total": (product.Cantidad * product.PVenta) - (product.Cantidad * product.PVenta)/(1+(product.Iva/100))
+          })
           totalBruto += ((product.Cantidad * product.PVenta)/(1+product.Iva/100))
           total += product.Cantidad * product.PVenta
-          detImpuestos.IVA.Total = total
-          totalImpuestos += product.Cantidad * product.PVenta * (product.Iva/100)
+          //detImpuestos.IVA.Total = total
+          //detImpuestos.IVA.porcentajes = porcentajes
+          totalImpuestos += (product.Cantidad * product.PVenta)-((product.Cantidad * product.PVenta)/(1+(product.Iva/100)))
           articulos.push(detProduct)
         }
         const Totales = {
@@ -2412,9 +2404,19 @@ export const putNewSale = async (req, res) => {
         }
         ElectronicData.Articulos = articulos
         ElectronicData.Totales = Totales
-        ElectronicData.Impuestos = detImpuestos
-        console.log("ElectronicData New Sale: ", JSON.stringify(ElectronicData))
+        //ElectronicData.Impuestos = detImpuestos
+        ElectronicData.Impuestos = {
+          "IVA": {
+                "Codigo": "01",
+                "Total": totalImpuestos,
+                "porcentajes": porcentajes
+                }
+        }
         //Para la factura electronica
+        const data = require('C:/Users/pc/Documents/Pruebasjson/FacturaElectronica.json');
+        console.log("ElectronicData New Sale: ", JSON.stringify(ElectronicData))
+
+
         const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
           method: 'POST',
           headers: { Accept: 'application/json',
@@ -2547,7 +2549,6 @@ export const putNewSale = async (req, res) => {
           false,
           true
         ]
-      //console.log('values3', values3)
       await connection.execute(sql3, values3);
 
       let Data = req.body
@@ -3133,6 +3134,27 @@ export const getCRDetail = async (req, res) => {
       };
     });
     res.status(200).json(dictionary)
+  } catch (error) {
+    console.error("Error en la función getCRDetail: ", error);
+    res.status(500).json(error);
+  } finally {
+    // Close the connection
+    await connection.end();
+  }
+}
+
+export const getSubClases = async (req, res) => {
+  const connection = await connectDBSivarPos();
+  console.log(req.body)
+  try {
+    const [subclases] = await connection.query(`SELECT
+                                                  UMedida,
+                                                  Nombre
+                                                FROM
+                                                  subclases
+                                                WHERE
+                                                  Id = ?`,[req.body.IdClase])
+    res.status(200).json(subclases)
   } catch (error) {
     console.error("Error en la función getCRDetail: ", error);
     res.status(500).json(error);

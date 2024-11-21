@@ -50,7 +50,8 @@ import { getTasks,
         postAddProduct,
         getDataLoginColtek,
         getClientOcupation,
-        postToRemsionToElectronic} from '../controllers/tasks';
+        postToRemsionToElectronic,
+        getSubClases} from '../controllers/tasks';
 
 
 const router = Router();
@@ -179,6 +180,8 @@ router.post('/pos/purchasedetail', getPurchaseDetail);
 router.post('/pos/addpurchase', putAddPurchase);
 
 router.post('/pos/updatevefied' , putUpdateVefied);
+
+router.post('/pos/subclases' , getSubClases);
 
 router.post('/pos/modifypurchaseproduct', putModifyPurchaseProduct);
 
