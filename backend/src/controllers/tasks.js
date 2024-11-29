@@ -635,6 +635,7 @@ export const putNewClient = async (req, res) => {
                                                                                                       req.body.Dv,
                                                                                                       req.body.Ocupacion,
                                                                                                       req.body.ResFiscal]);
+      console.log(newClient)
       res.status(200).json(newClient);
   } catch (error) {
       console.log(error);
@@ -885,57 +886,73 @@ export const getProductList = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
       const [productList] = await connection.query(`SELECT
-                                                      pro.Consecutivo,
-                                                      pro.IdFerreteria,
-                                                      pro.Cod,
-                                                      pro.Descripcion,
-                                                      IFNULL(dpro.PCosto,0) AS PCosto,
-                                                      IFNULL(dpro.PVenta,0) AS PVenta,
-                                                      IFNULL(dpro.Ubicacion, '') AS Ubicacion,
-                                                      IFNULL(dpro.InvMinimo, 0) AS InvMinimo,
-                                                      IFNULL(dpro.InvMaximo, 0) AS InvMaximo,
-                                                      ca.Categoria,
-                                                      ca.IdCategoria,
-                                                      subca.SubCategoria,
-                                                      subca.IdSubCategoria,
-                                                      pro.Clase,
-                                                      cla.Nombre AS NombreClase,
-                                                      pro.Detalle,
-                                                      CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario,
-                                                      CASE 
-                                                    WHEN EXISTS (
-                                                        SELECT 1
-                                                        FROM detalleproductoferreteria detPro
-                                                        WHERE dpro.Consecutivo = pro.Consecutivo
-                                                    ) THEN TRUE
-                                                    ELSE FALSE
-                                                      END AS ExisteEnDetalle
+                                                        pro.Consecutivo,
+                                                        pro.IdFerreteria,
+                                                        pro.Cod,
+                                                        pro.Descripcion,
+                                                        IFNULL(dpro.PCosto, 0) AS PCosto,
+                                                        IFNULL(dpro.PVenta, 0) AS PVenta,
+                                                        IFNULL(dpro.Ubicacion, '') AS Ubicacion,
+                                                        IFNULL(dpro.InvMinimo, 0) AS InvMinimo,
+                                                        IFNULL(dpro.InvMaximo, 0) AS InvMaximo,
+                                                        ca.Categoria,
+                                                        ca.IdCategoria,
+                                                        subca.SubCategoria,
+                                                        subca.IdSubCategoria,
+                                                        pro.Clase,
+                                                        cla.Nombre AS NombreClase,
+                                                        pro.Detalle,
+                                                        CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario,
+                                                        CASE 
+                                                            WHEN EXISTS (
+                                                                SELECT 1
+                                                                FROM detalleproductoferreteria detPro
+                                                                WHERE detPro.Consecutivo = pro.Consecutivo AND detPro.IdFerreteria = ?
+                                                            ) THEN TRUE
+                                                            ELSE FALSE
+                                                        END AS ExisteEnDetalle
                                                     FROM
-                                                      productos AS pro
-                                                      LEFT JOIN detalleproductoferreteria AS dpro ON pro.Consecutivo = dpro.Consecutivo
-                                                      JOIN subcategorias AS subca ON pro.SubCategoria = subca.IdSubCategoria
-                                                      JOIN categorias AS ca ON subca.IdCategoria = ca.IdCategoria
-                                                      LEFT JOIN (
-                                                    SELECT 
-                                                        ConsecutivoProd,
-                                                        SUM(Cantidad/UMedida) AS entradas 
-                                                    FROM 
-                                                        entradas 
-                                                    GROUP BY 
-                                                        ConsecutivoProd
-                                                      ) AS en ON pro.Consecutivo = en.ConsecutivoProd
-                                                      LEFT JOIN (
-                                                    SELECT 
-                                                        ConsecutivoProd, 
-                                                        SUM(Cantidad/UMedida) AS salidas 
-                                                    FROM 
-                                                        salidas 
-                                                    GROUP BY 
-                                                        ConsecutivoProd
-                                                      ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
-                                                      LEFT JOIN clases AS cla ON cla.Id = pro.Clase
-                                                      WHERE
-                                                      pro.IdFerreteria = '' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria])
+                                                        productos AS pro
+                                                        LEFT JOIN
+                                                          detalleproductoferreteria AS dpro
+                                                          ON pro.Consecutivo = dpro.Consecutivo AND dpro.IdFerreteria = ?
+                                                        JOIN subcategorias AS subca ON pro.SubCategoria = subca.IdSubCategoria
+                                                        JOIN categorias AS ca ON subca.IdCategoria = ca.IdCategoria
+                                                        LEFT JOIN (
+                                                            SELECT 
+                                                                e.ConsecutivoProd,
+                                                                SUM(e.Cantidad / e.UMedida) AS entradas
+                                                            FROM 
+                                                                entradas e
+                                                            WHERE EXISTS (
+                                                                SELECT 1
+                                                                FROM detalleproductoferreteria detPro
+                                                                WHERE detPro.Consecutivo = e.ConsecutivoProd AND e.CodResponsable = ?
+                                                            )
+                                                            GROUP BY 
+                                                                e.ConsecutivoProd
+                                                        ) AS en ON pro.Consecutivo = en.ConsecutivoProd
+                                                        LEFT JOIN (
+                                                            SELECT 
+                                                                s.ConsecutivoProd,
+                                                                SUM(s.Cantidad / s.UMedida) AS salidas
+                                                            FROM 
+                                                                salidas s
+                                                            WHERE EXISTS (
+                                                                SELECT 1
+                                                                FROM detalleproductoferreteria detPro
+                                                                WHERE detPro.Consecutivo = s.ConsecutivoProd AND s.CodResponsable = ?
+                                                            )
+                                                            GROUP BY 
+                                                                s.ConsecutivoProd
+                                                        ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
+                                                        LEFT JOIN clases AS cla ON cla.Id = pro.Clase
+                                                    WHERE
+                                                        pro.IdFerreteria = '' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria,
+                                                                                                        req.body.IdFerreteria,
+                                                                                                        req.body.IdFerreteria,
+                                                                                                        req.body.IdFerreteria,
+                                                                                                        req.body.IdFerreteria])
       const [MedidasList] = await connection.query(`SELECT
                                                       Consecutivo,
                                                       Medida,
@@ -981,7 +998,42 @@ export const getInventory = async (req, res) => {
                                                         pro.IdFerreteria,
                                                         pro.Cod,
                                                         pro.Descripcion,
-                                                        COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
+                                                        -- Cálculo de Inventario basado en subconsultas adaptadas
+                                                        COALESCE(
+                                                            (
+                                                                SELECT
+                                                                    COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Cantidad
+                                                                FROM
+                                                                    -- Subconsulta de entradas
+                                                                    (
+                                                                        SELECT
+                                                                            e.ConsecutivoProd,
+                                                                            SUM(e.Cantidad / e.UMedida) AS entradas
+                                                                        FROM
+                                                                            entradas e
+                                                                        WHERE
+                                                                            e.ConsecutivoProd = pro.Consecutivo
+                                                                            AND e.CodResponsable = ?
+                                                                        GROUP BY
+                                                                            e.ConsecutivoProd
+                                                                    ) AS en
+                                                                    -- Subconsulta de salidas
+                                                                    LEFT JOIN (
+                                                                        SELECT
+                                                                            s.ConsecutivoProd,
+                                                                            SUM(s.Cantidad / s.UMedida) AS salidas
+                                                                        FROM
+                                                                            salidas s
+                                                                        WHERE
+                                                                            s.ConsecutivoProd = pro.Consecutivo
+                                                                            AND s.CodResponsable = ?
+                                                                        GROUP BY
+                                                                            s.ConsecutivoProd
+                                                                    ) AS sa
+                                                                    ON en.ConsecutivoProd = sa.ConsecutivoProd
+                                                            ),
+                                                            0
+                                                        ) AS Inventario,
                                                         det.PCosto,
                                                         det.PVenta,
                                                         det.InvMinimo,
@@ -993,34 +1045,17 @@ export const getInventory = async (req, res) => {
                                                         sc.SubCategoria,
                                                         sc.IdCategoria,
                                                         ca.Categoria,
-                                                        det.Ubicacion
-                                                          FROM
+                                                        det.Ubicacion,
+                                                        1 AS ExisteEnDetalle
+                                                    FROM
                                                         productos AS pro
                                                         LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
-                                                        LEFT JOIN (
-                                                            SELECT 
-                                                          ConsecutivoProd,
-                                                          SUM(Cantidad/UMedida) AS entradas 
-                                                            FROM 
-                                                          entradas 
-                                                            GROUP BY 
-                                                          ConsecutivoProd
-                                                        ) AS en ON pro.Consecutivo = en.ConsecutivoProd
-                                                        LEFT JOIN (
-                                                            SELECT 
-                                                          ConsecutivoProd, 
-                                                          SUM(Cantidad/UMedida) AS salidas 
-                                                            FROM 
-                                                          salidas 
-                                                            GROUP BY 
-                                                          ConsecutivoProd
-                                                        ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
                                                         LEFT JOIN subcategorias AS sc ON pro.SubCategoria = sc.IdSubCategoria
                                                         LEFT JOIN categorias AS ca ON ca.IdCategoria = sc.IdCategoria
-                                                          WHERE
+                                                    WHERE
                                                         det.IdFerreteria = ?
-                                                          GROUP BY 
-                                                        pro.Consecutivo`,[req.body.IdFerreteria])
+                                                    GROUP BY
+                                                        pro.Consecutivo`,[req.body.IdFerreteria, req.body.IdFerreteria, req.body.IdFerreteria])
       const [MedidasList] = await connection.query(`SELECT
                                                       Consecutivo,
                                                       Medida,
@@ -1260,47 +1295,46 @@ export const postUpdateInventory = async(req, res) => {
     let value = 0
     //First query of the consecutive of the new product in entradas but the inner consecutive
     const [productData] = await connection.query(`SELECT
-                                              pro.Cod,
-                                              pro.Descripcion,
-                                              pro.subcategoria,
-                                              pro.Detalle
-                                            FROM
-                                              productos AS pro
-                                            WHERE
-                                              pro.Consecutivo = ?`, [req.body.ConsecutivoProd]);
+                                                    pro.Cod,
+                                                    pro.Descripcion,
+                                                    pro.subcategoria,
+                                                    pro.Detalle
+                                                  FROM
+                                                    productos AS pro
+                                                  WHERE
+                                                    pro.Consecutivo = ?`, [req.body.ConsecutivoProd]);
     
     const [queryCantidad] = await connection.query(`SELECT
                                                       IFNULL(en.entradas, 0) - IFNULL(sa.salidas, 0) AS Cantidad
                                                   FROM
                                                       (SELECT
-                                                          COALESCE(e.ConsecutivoProd, ?) AS ConsecutivoProd,
-                                                          COALESCE(SUM(e.Cantidad), 0) AS entradas
+                                                    COALESCE(e.ConsecutivoProd, ?) AS ConsecutivoProd,
+                                                    COALESCE(SUM(e.Cantidad), 0) AS entradas
                                                       FROM
-                                                          (SELECT ? AS ConsecutivoProd, 0 AS Cantidad) AS defaultValues
+                                                    (SELECT ? AS ConsecutivoProd, 0 AS Cantidad) AS defaultValues
                                                       LEFT JOIN
-                                                          entradas e ON e.ConsecutivoProd = ? AND e.IdFerreteria = ?
+                                                    entradas e ON e.ConsecutivoProd = ? AND e.CodResponsable = ?
                                                       GROUP BY
-                                                          e.ConsecutivoProd) AS en
+                                                    e.ConsecutivoProd) AS en
                                                   LEFT JOIN
                                                       (SELECT
-                                                          COALESCE(s.ConsecutivoProd, ?) AS ConsecutivoProd,
-                                                          COALESCE(SUM(s.Cantidad), 0) AS salidas
+                                                    COALESCE(s.ConsecutivoProd, ?) AS ConsecutivoProd,
+                                                    COALESCE(SUM(s.Cantidad), 0) AS salidas
                                                       FROM
-                                                          (SELECT ? AS ConsecutivoProd, 0 AS Cantidad) AS defaultValues
+                                                    (SELECT ? AS ConsecutivoProd, 0 AS Cantidad) AS defaultValues
                                                       LEFT JOIN
-                                                          salidas s ON s.ConsecutivoProd = ? AND s.IdFerreteria = ?
+                                                    salidas s ON s.ConsecutivoProd = ? AND s.CodResponsable = ?
                                                       GROUP BY
-                                                          s.ConsecutivoProd) AS sa
+                                                    s.ConsecutivoProd) AS sa
                                                   ON en.ConsecutivoProd = sa.ConsecutivoProd`, [req.body.ConsecutivoProd,
                                                                                                 req.body.ConsecutivoProd,
                                                                                                 req.body.ConsecutivoProd,
-                                                                                                req.body.IdFerreteria,
+                                                                                                req.body.CodResponsable,
                                                                                                 req.body.ConsecutivoProd,
                                                                                                 req.body.ConsecutivoProd,
                                                                                                 req.body.ConsecutivoProd,
-                                                                                                req.body.IdFerreteria]);
+                                                                                                req.body.CodResponsable]);
     const cantidadactual = parseFloat(queryCantidad[0].Cantidad);
-    console.log(queryCantidad[0].Cantidad)
     value = Math.abs(cantidadactual-req.body.Cantidad)
     const difference = req.body.Cantidad - cantidadactual
     if (difference > 0) {
@@ -1441,47 +1475,54 @@ export const getShoppingList = async (req, res) => {
   try {
     if (req.body.Compras === false) {
       const [lowInventory] = await connection.query(`SELECT
-                                                      pro.Consecutivo,
-                                                      pro.IdFerreteria,
-                                                      pro.Cod,
-                                                      pro.Descripcion,
-                                                      COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
-                                                      det.InvMinimo,
-                                                      det.InvMaximo,
-                                                      ca.Categoria,
-                                                      pro.Detalle,
-                                                      pro.Iva,
-                                                      pro.SVenta,
-                                                      pro.Clase
-                                                    FROM
-                                                      productos AS pro
-                                                      LEFT JOIN
-                                                    subcategorias AS sc ON sc.IDSubCategoria = pro.SubCategoria
-                                                      LEFT JOIN
-                                                    categorias AS ca ON sc.IDCategoria = ca.IDCategoria
-                                                      LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
-                                                      LEFT JOIN (
-                                                    SELECT 
-                                                        ConsecutivoProd,
-                                                        SUM(Cantidad/UMedida) AS entradas 
-                                                    FROM 
-                                                        entradas 
+                                                        pro.Consecutivo,
+                                                        pro.IdFerreteria,
+                                                        pro.Cod,
+                                                        pro.Descripcion,
+                                                        COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS Inventario,
+                                                        det.InvMinimo,
+                                                        det.InvMaximo,
+                                                        ca.Categoria,
+                                                        pro.Detalle,
+                                                        pro.Iva,
+                                                        pro.SVenta,
+                                                        pro.Clase
+                                                      FROM
+                                                        productos AS pro
+                                                        LEFT JOIN
+                                                      subcategorias AS sc ON sc.IDSubCategoria = pro.SubCategoria
+                                                        LEFT JOIN
+                                                      categorias AS ca ON sc.IDCategoria = ca.IDCategoria
+                                                        LEFT JOIN detalleproductoferreteria AS det ON pro.Consecutivo = det.Consecutivo
+                                                        LEFT JOIN (
+                                                      SELECT 
+                                                    ConsecutivoProd,
+                                                    SUM(Cantidad/UMedida) AS entradas 
+                                                      FROM 
+                                                    entradas 
+                                                      WHERE entradas.CodResponsable = ?
+                                                      GROUP BY 
+                                                    ConsecutivoProd
+                                                        ) AS en ON pro.Consecutivo = en.ConsecutivoProd
+                                                        LEFT JOIN (
+                                                      SELECT 
+                                                    ConsecutivoProd, 
+                                                    SUM(Cantidad/UMedida) AS salidas 
+                                                      FROM
+                                                    salidas
+                                                      WHERE salidas.CodResponsable = ?
+                                                      GROUP BY 
+                                                    ConsecutivoProd
+                                                        ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
+                                                    WHERE
+                                                        det.IdFerreteria = ? AND COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) <= det.InvMinimo
                                                     GROUP BY 
-                                                        ConsecutivoProd
-                                                      ) AS en ON pro.Consecutivo = en.ConsecutivoProd
-                                                      LEFT JOIN (
-                                                    SELECT 
-                                                        ConsecutivoProd, 
-                                                        SUM(Cantidad/UMedida) AS salidas 
-                                                    FROM 
-                                                        salidas 
-                                                    GROUP BY 
-                                                        ConsecutivoProd
-                                                      ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
-                                                        WHERE
-                                                      det.IdFerreteria = ? AND COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) <= det.InvMinimo
-                                                        GROUP BY 
-                                                      pro.Consecutivo`, [req.body.IdFerreteria]);
+                                                        pro.Consecutivo`, [req.body.IdFerreteria, req.body.IdFerreteria, req.body.IdFerreteria]);
+      if (!lowInventory || lowInventory.length === 0) {
+        console.log("No inventory: ", lowInventory);
+        // Devuelve una respuesta vacía explícita al cliente
+        return res.status(200).json([]);
+      }
       const sivarProducts = lowInventory.filter(pro => pro.IdFerreteria === 0)
       // Extraer solo los Cod de esos productos
       const codList = sivarProducts.map(pro => pro.Cod);
@@ -1521,6 +1562,7 @@ export const getShoppingList = async (req, res) => {
       res.status(200).json(updatedLowInventory);
             
   } else {
+    console.log('entro a compras')
     const [productsList] = await connectionSivar.query(`WITH RankedResults AS (
                                                     SELECT
                                                         *,
@@ -2593,6 +2635,7 @@ export const putNewSale = async (req, res) => {
           false,
           true
         ]
+        //console.log('values3', values3)
       await connection.execute(sql3, values3);
 
       let Data = req.body
@@ -3456,8 +3499,12 @@ export const ChechUserDataPos = async (req, res) => {
     delete user.Contraseña;
 
     // Guardar el token en la base de datos
-    const saveTokenQuery = `UPDATE tokens SET Token = ? WHERE Cod = ?`;
-    await connection.execute(saveTokenQuery, [token, user.Cod]);
+    const saveTokenQuery = `INSERT INTO tokens (Cod, Token)
+                            VALUES (?, ?)
+                            ON DUPLICATE KEY UPDATE
+                                Token = VALUES(Token);
+                            `;
+    await connection.execute(saveTokenQuery, [user.Cod,token]);
 
     const [Resolucion] = await connection.query(`SELECT
                                                   NumeroResolucion,
