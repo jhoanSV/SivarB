@@ -17,8 +17,41 @@ import { getTasks,
         checkLogInData,
         changePassword,
         BottonCaroucel,
-        SendSale
-        } from '../controllers/tasks';
+        SendSale,
+        putNewClient,
+        getClientList,
+        putNewProduct,
+        getProductList,
+        getInventory,
+        getPurchaseList,
+        putNewSale,
+        getSalesPerDay,
+        postUpdateProduct,
+        postUpdateInventory,
+        putUpdateCient,
+        getSubCategories,
+        getPurchaseDetail,
+        putAddPurchase,
+        bestRoute,
+        putUpdateVefied,
+        putModifyPurchaseProduct,
+        getShoppingList,
+        inserSivarList,
+        getCashFlow,
+        putNewMoneyFlow,
+        updateRemoveFlow,
+        putNewOutput,
+        putCancelTheSale,
+        getCRDetail,
+        getSalesByCategory,
+        getBestProducts,
+        ChechUserDataPos,
+        verifyToken,
+        postAddProduct,
+        getDataLoginColtek,
+        getClientOcupation,
+        postToRemsionToElectronic,
+        getSubClases} from '../controllers/tasks';
 
 
 const router = Router();
@@ -103,5 +136,85 @@ router.post('/tasks/productsdataweb', ProductDataWeb)
 router.post('/tasks/BottonCaroucel', BottonCaroucel)
 
 router.post('/tasks/SendSale', SendSale)
+
+router.post('/tasks/bestroute', bestRoute)
+
+
+
+
+
+//to the siver pos%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//*All about the aurotitation
+router.post('/tasks/loginPos', ChechUserDataPos);
+
+router.post('/tasks/verifytoken', verifyToken);
+//*All retalet to clients
+router.post('/pos/newclient', putNewClient);
+
+router.post('/pos/clientlist', getClientList);
+
+router.post('/pos/updateclient', putUpdateCient);
+
+//*All about products
+router.post('/pos/newproduct', putNewProduct);
+
+router.post('/pos/productList', getProductList);
+
+router.post('/pos/inventory', getInventory);
+
+router.post('/pos/updateproduct', postUpdateProduct);
+
+router.post('/pos/postupdateinventory', postUpdateInventory);
+
+router.get('/pos/subcategories', getSubCategories);
+
+router.post('/pos/shoppinglist', getShoppingList);
+
+router.post('/pos/addproduct', postAddProduct);
+
+//* All about purchases
+router.post('/pos/purchaseList', getPurchaseList);
+
+router.post('/pos/purchasedetail', getPurchaseDetail);
+
+router.post('/pos/addpurchase', putAddPurchase);
+
+router.post('/pos/updatevefied' , putUpdateVefied);
+
+router.post('/pos/subclases' , getSubClases);
+
+router.post('/pos/modifypurchaseproduct', putModifyPurchaseProduct);
+
+//*All about sales
+router.post('/pos/newsale', putNewSale);
+
+router.post('/pos/salesperday', getSalesPerDay);
+
+router.post('/pos/cashflow', getCashFlow);
+
+router.post('/pos/newmoneyflow', putNewMoneyFlow);
+
+router.post('/pos/removeflow', updateRemoveFlow);
+
+router.post('/pos/newoutput', putNewOutput)
+
+router.post('/pos/cancelthesale', putCancelTheSale)
+
+router.post('/pos/crdetail', getCRDetail);
+
+router.post('/pos/bestProducts', getBestProducts);
+
+router.post('/pos/salesbycategory', getSalesByCategory)
+
+router.get('/tasks/datalogincoltek', getDataLoginColtek)
+
+router.get('/pos/clientocupation', getClientOcupation)
+
+router.post('/pos/toremsiontoelectronic', postToRemsionToElectronic)
+
+
+
+//*Other Functions
+router.post('/pos/inserSivarList', inserSivarList);
 
 export default router

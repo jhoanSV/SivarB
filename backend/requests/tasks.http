@@ -1,5 +1,5 @@
 //@api = http://50.16.92.138/tasks
-@api = http://localhost:3000/tasks
+@api = http://192.168.1.110:3000/
 //@api = http://172.25.160.1:3000/tasks
 //http://44.204.84.253/tasks
 //@api = http://44.209.105.117:80/tasks
@@ -14,7 +14,7 @@ GET {{api}}/search/AM002
 GET {{api}}/clientes/V2
 
 ###
-POST {{api}}/validar
+POST {{api}}tasks/validar
 Content-Type: application/json
 
 {
@@ -58,7 +58,7 @@ POST {{api}}/consecutivoPrefactura/6192
 GET {{api}}/DatosProgreso/10
 
 ### usar este para la prueba
-GET {{api}}/PedidosEnviados/9
+GET {{api}}tasks/PedidosEnviados/9
 
 ###
 GET {{api}}/DetallePedidoVendedor/7500
@@ -72,7 +72,7 @@ Content-Type: application/json
 }
 
 ###
-POST  {{api}}/login
+POST  {{api}}/task/login
 Content-Type: application/json
 
 {
@@ -82,17 +82,17 @@ Content-Type: application/json
 
 
 ###
-POST  {{api}}/Changepassword
+POST  {{api}}/task/Changepassword
 Content-Type: application/json
 
 {
-    "CodUser": "493",
-    "Password": "123456789",
+    "CodUser": "242",
+    "Password": "123456",
     "NewPassword": "123456789"
 }
 
 ###
-POST  {{api}}/BottonCaroucel
+POST  {{api}}/task/BottonCaroucel
 Content-Type: application/json
 
 {
@@ -101,7 +101,7 @@ Content-Type: application/json
 }
 
 ###
-POST  {{api}}/SendSale
+POST  {{api}}task/SendSale
 Content-Type: application/json
 
 {
@@ -114,3 +114,317 @@ Content-Type: application/json
     "VECommerce": "0",
     "TIngresados": "12,CIT05,950;6,SP136,3500"
 }
+
+
+//proofs for the pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+//clients
+###
+POST {{api}}pos/clientlist
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242"
+}
+
+###
+POST {{api}}pos/newclient
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Tipo": 0,
+    "NitCC": 123456789,
+    "Nombre": "Jhoan Sebastian",
+    "Apellido": "Sierra Vargas",
+    "Telefono1": "3227804602",
+    "Telefono2": "",
+    "Correo": "correodeprueba@gmail.com",
+    "Direccion": "calle 71 sur N° 14 B-78",
+    "Barrio": "La fortaleza",
+    "FormaDePago": 0,
+    "LimiteDeCredito": 0,
+    "Nota": "Es una prueba para el cliente nuevo del pos",
+    "Fecha": "2024-07-20 13:00:00"
+}
+
+###
+POST {{api}}pos/updateclient
+Content-Type: application/json
+
+{
+    "Tipo": 0,
+    "NitCC": "123456789",
+    "Nombre": "Jhoan Sebastian arreglado",
+    "Apellido": "Sierra vargas arreglado",
+    "Telefono1": "3227804602",
+    "Telefono2": "987654321",
+    "Correo": "correodeprueba@gmail.com",
+    "Direccion": "calle 71 sur N° 14 B-78",
+    "Barrio": "La fortaleza",
+    "FormaDePago": 0,
+    "LimiteDeCredito": 0,
+    "Nota": "Es una prueba para actualizar el cliente nuevo del pos",
+    "Consecutivo": 1,
+    "IdFerreteria": 242
+}
+
+// products
+###
+POST {{api}}pos/newproduct
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Cod": "bla3",
+    "Descripcion": "Segundo producto de prueba para el pos",
+    "Cantidad": 100,
+    "SubCategoria": 2,
+    "PCosto": 800,
+    "PVenta": 1200,
+    "InvMinimo": 1,
+    "InvMaximo": 5,
+    "Ubicacion": "A1",
+    "Detalle": "Es una segunda prueba de ingreso de nuevo producto al inventario",
+    "Clase": false,
+    "Iva": 19,
+    "Fecha": "2024-06-07 11:49:35",
+    "CodResponsable": "242",
+    "Responsable": "Ferreteria de prueba",
+    "Motivo": "Nuevo producto al inventario"
+}
+
+###
+POST {{api}}pos/productList
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242"
+}
+
+###
+POST {{api}}pos/inventory
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242"
+}
+
+###
+POST {{api}}pos/newproduct
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Cod": "pruno",
+    "Descripcion": "producto de sivar",
+    "IdSubCategoria": 2,
+    "PCosto": 800,
+    "PVenta": 1200,
+    "PrecioUM": 10000,
+    "UMedida": 10,
+    "Medida": "Metros",
+    "InvMinimo": 1,
+    "InvMaximo": 5,
+    "Ubicacion": "A1",
+    "Detalle": "Es una segunda prueba de ingreso de nuevo producto al inventario",
+    "Clase": false,
+    "Iva": 19,
+    "CodResponsable": "242",
+    "Responsable": "Ferreteria de prueba",
+    "Motivo": "Nuevo producto al inventario",
+    "Fecha": "2024-06-07 11:49",
+    "Inventario": 20
+}
+
+
+###
+POST {{api}}pos/newsale
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Folio": 1,
+    "IdCliente": 1,
+    "Fecha": "2024-04-07 11:49:35",
+    "CodResponsable": "242",
+    "Responsable": "Ferreteria marly",
+    "Order": [{
+        "ConsecutivoProd": 8,
+        "Cantidad": 5,
+        "Cod": "bla",
+        "Descripcion": "Producto de prueba para el pos",
+        "VrCosto": 500.00,
+        "VrUnitario": 1000.00,
+        "Iva": 19.0,
+        "Motivo": "Venta por caja"
+        },
+        {
+        "ConsecutivoProd": 9,
+        "Cantidad": 10,
+        "Cod": "bla",
+        "Descripcion": "Segundo producto de prueba para el pos",
+        "VrCosto": 500.00,
+        "VrUnitario": 1000.00,
+        "Iva": 19.0,
+        "Motivo": "Venta por caja"
+        }]
+}
+
+###
+GET {{api}}pos/inventory
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "Fecha": "2024-04-07"
+}
+
+
+###
+POST {{api}}pos/updateproduct
+Content-Type: application/json
+
+{
+    "IdFerreteria": "242",
+    "ConsecutivoProd": 8,
+    "Cod": "bla",
+    "Descripcion": "Producto de prueba para el pos",
+    "Clase": 0,
+    "SubCategoria": 1,
+    "Detalle": "Producto de prueba para actualizar",
+    "Iva": 19,
+    "PCosto": 600,
+    "PVenta": 1500,
+    "Ubicacion": "A2",
+    "InvMinimo": 1,
+    "InvMaximo": 5,
+    "Medida": "Metros",
+    "UMedida": 6,
+    "PrecioUM": 300
+}
+
+###
+POST {{api}}pos/postupdateinventory
+Content-Type: application/json
+
+{
+    "IdFerreteria": 242,
+    "CodResponsable": "242",
+    "Responsable": "Ferreteria marly",
+    "ConsecutivoProd": "8",
+    "Cantidad": 250,
+    "Fecha": "2024-04-07 11:49:35",
+    "Motivo": "Ajuste de inventario"
+}
+
+###
+GET {{api}}pos/subcategories
+
+###
+POST {{api}}pos/purchaseList
+Content-Type: application/json
+
+{
+    "IdFerreteria": 242
+}
+
+###
+POST {{api}}pos/purchasedetail
+Content-Type: application/json
+
+{
+    "IdFerreteria": 242,
+    "NPrefactura": 10725
+}
+
+###
+POST {{api}}pos/addpurchase
+Content-Type: application/json
+
+{
+    "Consecutivo": 2,
+    "IdFerreteria": 242,
+    "Fecha": "2024-04-07 11:49:35",
+    "Order": {[
+        {
+            "Cantidad": 5,
+            "Consecutivoprod": "",
+            "Cod": "bla",
+            "Descripcion": "Producto de prueba para el pos2",
+            "VrUnitarioFactura": 400,
+            "PCosto": 500,
+            "Inventario": "250",
+            "verificado": 0
+        },
+        {
+            "Cantidad": 10,
+            "Consecutivoprod": "",
+            "Cod": "bLA2",
+            "Descripcion": "Segundo producto de prueba para el pos",
+            "VrUnitarioFactura": 800,
+            "PCosto": 800,
+            "Inventario": "75",
+            "verificado": 0
+        }
+    ]}
+}
+
+###
+POST {{api}}pos/updatevefied
+Content-Type: application/json
+
+{
+    "Verificado": true,
+    "IdFerreteria": 242,
+    "NPreFactura": 10725,
+    "Cod" : "bla"
+}
+
+
+###
+POST {{api}}tasks/bestroute
+Content-Type: application/json
+
+{
+    "usuario": 5
+}
+
+###
+POST {{api}}pos/modifypurchaseproduct
+Content-Type: application/json
+
+{
+    "Consecutivo": 8,
+    "IdFerreteria": 242,
+    "PCosto": 1800.00,
+    "PVenta": 2000.00,
+    "InvMinimo": 1,
+    "InvMaximo": 1,
+    "Ubicacion": "",
+    "Medida": "",
+    "UMedida": 0,
+    "PrecioUM": 0
+}
+
+###
+POST {{api}}pos/salesperday
+Content-Type: application/json
+
+{
+    "IdFerreteria": 242,
+    "Fecha": "2024-04-07"
+}
+
+###
+POST {{api}}pos/shoppinglist
+Content-Type: application/json
+
+{
+    "IdFerreteria": 242,
+    "Fecha": "2024-08-16",
+    "TipoDeFlujo": false
+}
+
+###
+//POST {{api}}pos/inserSivarList
