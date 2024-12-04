@@ -3,7 +3,7 @@ import { connect, connectDBSivarPos } from "../database";
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fetch = require('node-fetch');
-const ambiente = 2
+const ambiente = 1
 
 
 export const getTasks = async(req, res) => {
@@ -2195,7 +2195,7 @@ export const postToRemsionToElectronic = async (req, res) => {
             "Resolucion": Resolucion[0],
             "Factura": Resolucion[0].Prefijo + UfacturaRows[0].UFactura,
             "Fecha": req.body.RCData.Fecha.split(' ')[0],
-            "Hora": req.body.RCData.Fecha.split(' ')[1],
+            "Hora": req.body.RCData.Fecha.split(' ')[1] + "-05:00",
             "Observacion": "Observacion",
             "FormaDePago": "1", //Es 1 para contado y 2 para credito
             "MedioDePago": req.body.MedioDePagoColtek,
@@ -2263,7 +2263,7 @@ export const postToRemsionToElectronic = async (req, res) => {
         }
     console.log('ElectronicData to', JSON.stringify(ElectronicData))
     //Para la factura electronica
-    const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
+    const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send`,{
       method: 'POST',
       headers: { Accept: 'application/json',
                          'Content-Type': 'application/json',
@@ -2334,7 +2334,8 @@ const VerifyTokenColtek = async(dataUser) => {
                           },
           body: JSON.stringify(dataUser.token)
       })
-      const data = await res.json
+      const data = await res.json()
+      console.log('data verified: ', data)
       if (data.status === false) {
         const resColtekLogIn = await fetch(`http://sivar.colsad.com/api/v1/login`,{
           method: 'POST',
@@ -2499,11 +2500,11 @@ export const putNewSale = async (req, res) => {
                 }
         }
         //Para la factura electronica
-        const data = require('C:/Users/pc/Documents/Pruebasjson/FacturaElectronica.json');
+        //const data = require('C:/Users/pc/Documents/Pruebasjson/FacturaElectronica.json');
         console.log("ElectronicData New Sale: ", JSON.stringify(ElectronicData))
 
 
-        const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
+        const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send`,{
           method: 'POST',
           headers: { Accept: 'application/json',
                              'Content-Type': 'application/json',
@@ -2515,6 +2516,10 @@ export const putNewSale = async (req, res) => {
         //Start the transaction
         await connection.beginTransaction();
         if (responceElectronicData.Result.IsValid === "true") {
+          Prefijo = Resolucion[0].Prefijo
+          Cufe = responceElectronicData.Result.CufeCude
+          FacturaElectronica = UfacturaRows[0].UFactura
+        } else if (responceElectronicData.Result.IsValid === "false") {
           Prefijo = Resolucion[0].Prefijo
           Cufe = responceElectronicData.Result.CufeCude
           FacturaElectronica = UfacturaRows[0].UFactura
@@ -2640,6 +2645,8 @@ export const putNewSale = async (req, res) => {
 
       let Data = req.body
       if (responceElectronicData && responceElectronicData.Result.IsValid === 'true') {
+        Data.Result = responceElectronicData.Result
+      } else if (responceElectronicData && responceElectronicData.Result.IsValid === 'false') {
         Data.Result = responceElectronicData.Result
       }
       //console.log('Data', Data)
@@ -3405,7 +3412,7 @@ export const bestRoute = async (req, res) => {
   }
 }
 
-/*export const inserSivarList = async (req, res) => {
+export const inserSivarList = async (req, res) => {
   const connection = await connectDBSivarPos();
   const connectionSivar = await connect()
   try {
@@ -3429,8 +3436,9 @@ export const bestRoute = async (req, res) => {
                                                   Clase,
                                                   SubCategoria,
                                                   Detalle,
-                                                  Iva)
-                                      VALUES (?,?,?,?,?,?,?)` 
+                                                  Iva,
+                                                  SVenta)
+                                      VALUES (?,?,?,?,?,?,?,?)` 
     for (const values of getDataFromSivar){
       const producto = [
         '0',
@@ -3439,7 +3447,8 @@ export const bestRoute = async (req, res) => {
         values.EsUnidadOpaquete,
         values.SubCategoria,
         values.Detalle,
-        values.Iva
+        values.Iva,
+        '1'
       ];
         await connection.query(sendDataToSivarPos, producto);
     }
@@ -3452,7 +3461,7 @@ export const bestRoute = async (req, res) => {
     await connection.end();
     await connectionSivar.end();
   }
-}*/
+}
 
 export const ChechUserDataPos = async (req, res) => {
   const connection = await connect(); // Conectarse a la base de datos
@@ -3560,14 +3569,6 @@ export const verifyToken = async (req, res) => {
       decoded = jwt.verify(token, process.env.SECRET);
     } catch (error) {
       return res.status(403).json({ authorization: false });
-      // Capturar específicamente los errores de verificación del token
-      /*if (error.name === 'TokenExpiredError') {
-        return res.status(403).json({ error: 'Token expired' });
-      } else if (error.name === 'JsonWebTokenError') {
-        return res.status(403).json({ error: 'Invalid token' });
-      } else {
-        return res.status(403).json({ error: 'Token verification failed' });
-      }*/
     }
     // Buscar el token en la base de datos
     const [rows] = await connection.query('SELECT Token FROM tokens WHERE Token = ? AND Cod = ?', [token, decoded.userId]);
@@ -3622,17 +3623,10 @@ export const getDataLoginColtek = async (req, res) => {
       decoded = jwt.verify(token, process.env.SECRET);
     } catch (error) {
       return res.status(403).json({ authorization: false });
-      // Capturar específicamente los errores de verificación del token
-      /*if (error.name === 'TokenExpiredError') {
-        return res.status(403).json({ error: 'Token expired' });
-      } else if (error.name === 'JsonWebTokenError') {
-        return res.status(403).json({ error: 'Invalid token' });
-      } else {
-        return res.status(403).json({ error: 'Token verification failed' });
-      }*/
     }
     // Buscar el token en la base de datos
-    const [rows] = await connection.query(`SELECT Token FROM tokens WHERE Token = ? AND Cod = ?`, [token, decoded.userId]);
+    const [rows] = await connection.query(`SELECT
+                                            Token FROM tokens WHERE Token = ? AND Cod = ?`, [token, decoded.userId]);
 
     if (rows.length === 0) {
       return res.status(403).json({ authorization: false });
@@ -3641,7 +3635,7 @@ export const getDataLoginColtek = async (req, res) => {
                                                                 Usuario,
                                                                 Clave
                                                         FROM resoluciones WHERE IdFerreteria = ?`, [decoded.userId]);
-      console.log('ConnectionColtek: ' + ConnectionColtek)
+      console.log('ConnectionColtek: ', JSON.stringify(ConnectionColtek))
       return res.status(200).json(ConnectionColtek)
     }
   } catch (error) {

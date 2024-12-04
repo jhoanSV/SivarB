@@ -211,7 +211,10 @@ router.get('/tasks/datalogincoltek', getDataLoginColtek)
 router.get('/pos/clientocupation', getClientOcupation)
 
 router.post('/pos/toremsiontoelectronic', postToRemsionToElectronic)
+
+
+
 //*Other Functions
-//router.post('/pos/inserSivarList', inserSivarList);
+router.post('/pos/inserSivarList', inserSivarList);
 
 export default router

@@ -427,4 +427,4 @@ Content-Type: application/json
 }
 
 ###
-POST {{api}}pos/inserSivarList
+//POST {{api}}pos/inserSivarList
