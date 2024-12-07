@@ -948,11 +948,11 @@ export const getProductList = async (req, res) => {
                                                         ) AS sa ON pro.Consecutivo = sa.ConsecutivoProd
                                                         LEFT JOIN clases AS cla ON cla.Id = pro.Clase
                                                     WHERE
-                                                        pro.IdFerreteria = '' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria,
-                                                                                                        req.body.IdFerreteria,
-                                                                                                        req.body.IdFerreteria,
-                                                                                                        req.body.IdFerreteria,
-                                                                                                        req.body.IdFerreteria])
+                                                        pro.IdFerreteria = '0' OR pro.IdFerreteria = ?`, [req.body.IdFerreteria,
+                                                                                                          req.body.IdFerreteria,
+                                                                                                          req.body.IdFerreteria,
+                                                                                                          req.body.IdFerreteria,
+                                                                                                          req.body.IdFerreteria])
       const [MedidasList] = await connection.query(`SELECT
                                                       Consecutivo,
                                                       Medida,
@@ -1452,13 +1452,13 @@ export const getSubCategories = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
       const [SubCategoryList] = await connection.query(`SELECT
-                                                      sc.IdSubCategoria,
-                                                      sc.SubCategoria,
-                                                      sc.IdCategoria,
-                                                      ca.Categoria
-                                                    FROM
-                                                      subcategorias AS sc
-                                                      LEFT JOIN categorias AS ca ON sc.IdCategoria = ca.IdCategoria`)
+                                                          sc.IdSubCategoria,
+                                                          sc.SubCategoria,
+                                                          sc.IdCategoria,
+                                                          ca.Categoria
+                                                        FROM
+                                                          subcategorias AS sc
+                                                          LEFT JOIN categorias AS ca ON sc.IdCategoria = ca.IdCategoria`)
       res.status(200).json(SubCategoryList);
   } catch (error) {
       console.log(error);
