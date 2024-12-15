@@ -198,8 +198,6 @@ router.post('/pos/removeflow', updateRemoveFlow);
 
 router.post('/pos/newoutput', putNewOutput)
 
-router.post('/pos/cancelthesale', putCancelTheSale)
-
 router.post('/pos/crdetail', getCRDetail);
 
 router.post('/pos/bestProducts', getBestProducts);

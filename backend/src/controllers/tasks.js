@@ -3,7 +3,7 @@ import { connect, connectDBSivarPos } from "../database";
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fetch = require('node-fetch');
-const ambiente = 1
+const ambiente = 2
 
 
 export const getTasks = async(req, res) => {
@@ -173,7 +173,6 @@ export const DetallePedidoCerrado = async(req, res) => {
     }
 };
 
-
 //Todo: create just one quiery to send the product data if the client is logged in or not
 export const ProductDataWeb = async(req, res) => {
   /*Return the whole list of product only with the necessary information deppending on if the user is logged in or not */
@@ -333,20 +332,19 @@ export const checkLogInData = async (req, res) => {
       // Check if the password matches with the password that the user gave
       if (rows.length > 0) {
         const dbPassword = rows[0].Contraseña;  // Use index 0 to access the first row
-        //console.log(dbPassword);
+       
         bcrypt.compare(req.body.Password, dbPassword, function(err, result) {
           if (err) {
             // Handle error
-            console.error(err);
+            //console.error(err);
             res.status(500).json({ error: 'Internal Server Error' });
           } else if (result) {
             // Passwords match
             delete rows[0].Contraseña
             res.json(rows[0]);
-            //console.log(rows[0])
+            
           } else {
             // Passwords do not match
-            console.log('Password is incorrect');
             res.status(401).json({ error: 'Unauthorized' });
           }
           //connection.end();
@@ -359,8 +357,7 @@ export const checkLogInData = async (req, res) => {
       console.error('entro en este' & error);
       res.status(500).json({ error: 'Internal Server Error' });
     }
-  };
-
+};
 
 //Todo: Function for changind the password.
 export const changePassword = async (req, res) => {
@@ -373,7 +370,6 @@ export const changePassword = async (req, res) => {
       // Check if the password matches with the password that the user gave
       if (rows.length > 0) {
         const dbPassword = rows[0].Contraseña; // Use index 0 to access the first row
-        //console.log(dbPassword);
   
         try {
           const result = await new Promise((resolve, reject) => {
@@ -409,7 +405,6 @@ export const changePassword = async (req, res) => {
             
           } else {
             // Passwords do not match
-            console.log('Password is incorrect');
             res.status(401).json({ error: 'Unauthorized' });
           }
         } catch (err) {
@@ -425,7 +420,7 @@ export const changePassword = async (req, res) => {
       console.error('entro en este' & error);
       res.status(500).json({ error: 'Internal Server Error' });
     }
-  };
+};
   
 //Todo: select the first five best productos of each category
 export const BottonCaroucel = async(req, res) => {
@@ -527,7 +522,6 @@ export const BottonCaroucel = async(req, res) => {
 
 
 };
-
 
 export const SendSale = async (req, res) => {
   try {
@@ -635,7 +629,7 @@ export const putNewClient = async (req, res) => {
                                                                                                       req.body.Dv,
                                                                                                       req.body.Ocupacion,
                                                                                                       req.body.ResFiscal]);
-      console.log(newClient)
+      
       res.status(200).json(newClient);
   } catch (error) {
       console.log(error);
@@ -721,7 +715,6 @@ export const putUpdateCient = async (req, res) => {
                      req.body.Consecutivo,
                      req.body.IdFerreteria
                     ];
-    console.log("values1: ", values1)
     await connection.execute(sql1, values1);
     await connection.commit();
     res.status(200).json({ message: 'Transacción completada con éxito' });
@@ -761,7 +754,7 @@ export const putNewProduct = async (req, res) => {
                        req.body.Detalle,
                        req.body.Iva,
                        0]
-      //console.log('values1', values1)
+
       await connection.execute(sql1, values1);
 
       //Second query of the consecutive of the new product
@@ -784,7 +777,7 @@ export const putNewProduct = async (req, res) => {
                        req.body.InvMinimo,
                        req.body.InvMaximo,
                        req.body.Ubicacion]
-      //console.log('values2', values2)
+
       await connection.execute(sql2, values2);
 
       const sqlMedidas = `INSERT INTO
@@ -797,7 +790,7 @@ export const putNewProduct = async (req, res) => {
                             VALUES (?,?,?,?,?)`
       
       if (req.body.Medidas.length > 0){
-        console.log('Medidas', req.body.Medidas)
+
         for (const entry of req.body.Medidas) {
           const MedidasValues = [
             Consecutivo,
@@ -806,8 +799,6 @@ export const putNewProduct = async (req, res) => {
             entry.UMedida,
             entry.PVentaUM
           ]
-          //console.log('entry', entry)
-          //console.log('MedidasValues', MedidasValues)
           await connection.execute(sqlMedidas, MedidasValues)
         }
       }
@@ -865,8 +856,6 @@ export const putNewProduct = async (req, res) => {
                        0,
                        '',
                        1]
-      console.log("values3", values3)
-      //console.log('values3', values3)
       await connection.execute(sql3, values3);
       // Confirm the transaction
       await connection.commit();
@@ -1117,7 +1106,7 @@ export const postUpdateProduct = async (req, res) => {
       req.body.Iva,
       req.body.ConsecutivoProd
     ];
-    console.log('productValues', productValues)
+    
     await connection.execute(updateProductSql, productValues);
     // Verificar si ya existe el producto en detalleproductoferreteria
     const [queryCantidad] = await connection.query(`
@@ -1172,7 +1161,6 @@ export const postUpdateProduct = async (req, res) => {
       req.body.Ubicacion
     ];
     // Ejecutar la consulta para detalleproductoferreteria
-    console.log('detalleProductoValues', detalleProductoValues)
     await connection.execute(detalleProductoSql, detalleProductoValues);
     const eliminarMedida = `DELETE FROM
                               medida
@@ -1199,7 +1187,7 @@ export const postUpdateProduct = async (req, res) => {
           entry.UMedida,
           entry.PVentaUM
         ];
-        console.log('detalleMedidaValues', detalleMedidaValues)
+        
         return connection.execute(detalleMedidaSql, detalleMedidaValues);
       });
       await Promise.all(medidaPromises);
@@ -1275,7 +1263,6 @@ export const postAddProduct = async (req, res) => {
       req.body.ConsecutivoProd,
       req.body.IdFerreteria
     ]
-    //console.log('updateProductValues', updateProductValues)
     await connection.execute(updateProductData, updateProductValues);          
     await connection.commit();
     res.status(200).json({ message: 'Transacción completada con éxito' });
@@ -1433,7 +1420,6 @@ export const postUpdateInventory = async(req, res) => {
                       req.body.Fecha,
                       '',
                       1]
-    //console.log("values2: ", values2)
     await connection.execute(sql2, values2);
     }
     // Confirm the transaction
@@ -1519,7 +1505,6 @@ export const getShoppingList = async (req, res) => {
                                                     GROUP BY 
                                                         pro.Consecutivo`, [req.body.IdFerreteria, req.body.IdFerreteria, req.body.IdFerreteria]);
       if (!lowInventory || lowInventory.length === 0) {
-        console.log("No inventory: ", lowInventory);
         // Devuelve una respuesta vacía explícita al cliente
         return res.status(200).json([]);
       }
@@ -1562,7 +1547,7 @@ export const getShoppingList = async (req, res) => {
       res.status(200).json(updatedLowInventory);
             
   } else {
-    console.log('entro a compras')
+    //console.log('entro a compras')
     const [productsList] = await connectionSivar.query(`WITH RankedResults AS (
                                                     SELECT
                                                         *,
@@ -1972,7 +1957,6 @@ export const putAddPurchase = async (req, res) => {
   }
 };
 
-
 export const putModifyPurchaseProduct = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
@@ -2081,7 +2065,6 @@ export const postToRemsionToElectronic = async (req, res) => {
   try {
 
     let Customer = req.body
-    console.log('req.body: ', req.body)
     //To create the new electronic invoice
     const [Resolucion] = await connectSivar.query(`SELECT
                                                     NumeroResolucion,
@@ -2135,7 +2118,6 @@ export const postToRemsionToElectronic = async (req, res) => {
                                                     clientes AS cli
                                                   WHERE
                                                     Consecutivo = ?`, [req.body.IdCliente]);
-      //console.log('CLiente', Cliente)
       Customer = {
                   "TipoPersona": Cliente[0].Tipo == 0 ? 2 : 1,
                   "NombreTipoPersona": Cliente[0].Tipo ? 'Persona Natural' : 'Persona Jurídica',
@@ -2261,9 +2243,8 @@ export const postToRemsionToElectronic = async (req, res) => {
                 "porcentajes": porcentajes
                 }
         }
-    console.log('ElectronicData to', JSON.stringify(ElectronicData))
     //Para la factura electronica
-    const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send`,{
+    const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
       method: 'POST',
       headers: { Accept: 'application/json',
                          'Content-Type': 'application/json',
@@ -2271,7 +2252,6 @@ export const postToRemsionToElectronic = async (req, res) => {
       body: JSON.stringify(ElectronicData)
     })
     const responceElectronicData = await resFElectronica.json()
-    console.log('responceElectronicData', JSON.stringify(responceElectronicData))
 
     if (responceElectronicData.status){
       const sql1 = `UPDATE
@@ -2290,14 +2270,13 @@ export const postToRemsionToElectronic = async (req, res) => {
                       req.body.RCData.IdFerreteria,
                       req.body.Consecutivo
                     ];
-      //console.log('values: ', values);
+
       await connection.execute(sql1, values)
 
       let Data = {...req.body}
       if (responceElectronicData && responceElectronicData.Result.IsValid === 'true') {
         Data.Result = responceElectronicData.Result
       }
-      console.log('Data', Data)
       res.status(200).json(Data);
     } else {
       res.status(401).json({ message: 'Ocurrio un error al realizar la transacción' });
@@ -2312,11 +2291,7 @@ export const postToRemsionToElectronic = async (req, res) => {
   }
 }
 
-
 //* All about sales
-
-
-
 
 const VerifyTokenColtek = async(dataUser) => {
   /*Validate the user information and if it's correct return the data of the user
@@ -2335,7 +2310,7 @@ const VerifyTokenColtek = async(dataUser) => {
           body: JSON.stringify(dataUser.token)
       })
       const data = await res.json()
-      console.log('data verified: ', data)
+
       if (data.status === false) {
         const resColtekLogIn = await fetch(`http://sivar.colsad.com/api/v1/login`,{
           method: 'POST',
@@ -2398,8 +2373,6 @@ export const putNewSale = async (req, res) => {
         if (UfacturaRows[0].UFactura === 0) {
           UfacturaRows[0].UFactura = Resolucion[0].NumeroInicial
         }
-        //console.log('Ufactura[0]: ', UfacturaRows[0].UFactura)
-
 
         const ElectronicData = {
               "Ambiente": ambiente,
@@ -2501,10 +2474,8 @@ export const putNewSale = async (req, res) => {
         }
         //Para la factura electronica
         //const data = require('C:/Users/pc/Documents/Pruebasjson/FacturaElectronica.json');
-        console.log("ElectronicData New Sale: ", JSON.stringify(ElectronicData))
 
-
-        const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send`,{
+        const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/factura/send?debug=true&type=00`,{
           method: 'POST',
           headers: { Accept: 'application/json',
                              'Content-Type': 'application/json',
@@ -2512,7 +2483,6 @@ export const putNewSale = async (req, res) => {
           body: JSON.stringify(ElectronicData)
         })
         responceElectronicData = await resFElectronica.json()
-        console.log("responceElectronicData New Sale: ", JSON.stringify(responceElectronicData))
         //Start the transaction
         await connection.beginTransaction();
         if (responceElectronicData.Result.IsValid === "true") {
@@ -2548,7 +2518,6 @@ export const putNewSale = async (req, res) => {
                         Cufe,
                         SaveREsolucion
                       ]
-      //console.log('values1', values1)
       await connection.execute(sql1, values1);
 
       //Second query of the consecutive of the new product
@@ -2604,7 +2573,6 @@ export const putNewSale = async (req, res) => {
             entry.Medida,
             entry.UMedida
         ];
-        //console.log('values2', values2)
         await connection.execute(sql2, values2);
       }
       //Insertion to the entradadedinero table
@@ -2640,7 +2608,6 @@ export const putNewSale = async (req, res) => {
           false,
           true
         ]
-        //console.log('values3', values3)
       await connection.execute(sql3, values3);
 
       let Data = req.body
@@ -2649,7 +2616,6 @@ export const putNewSale = async (req, res) => {
       } else if (responceElectronicData && responceElectronicData.Result.IsValid === 'false') {
         Data.Result = responceElectronicData.Result
       }
-      //console.log('Data', Data)
       // Confirm the transaction
       await connection.commit();
       res.status(200).json(Data);
@@ -2952,257 +2918,6 @@ export const putNewOutput = async (req, res) => {
   }
 }
 
-export const putCancelTheSale = async (req, res) => {
-  const connection = await connectDBSivarPos();
-  const connectSivar = await connect()
-  try {
-    let articulos = [];
-    let total = 0;
-    let porcentajes = [];
-    let Bruto = 0;
-    let ImpuestosValue = 0;
-    let Customer = req.body.Customer
-    let CantidadProductos = 0
-    if (req.body.Cufe != '') {
-      const [logInColtek] = await connectSivar.query(`SELECT
-                                                        Api,
-                                                        Usuario,
-                                                        Clave
-                                                      FROM
-                                                        resoluciones
-                                                      WHERE
-                                                        IdFerreteria = ?`, [req.body.IdFerreteria]);
-      
-      const [Resolucion] = await connectSivar.query(`SELECT
-                                                      NumeroResolucion,
-                                                      DATE_FORMAT(FechaInicio, '%Y-%m-%d') AS FechaInicio,
-                                                      DATE_FORMAT(FechaFinal, '%Y-%m-%d') AS FechaFinal,
-                                                      Prefijo,
-                                                      NumeroInicial,
-                                                      NumeroFinal,
-                                                      ClaveTecnica
-                                                    FROM
-                                                      resoluciones
-                                                    WHERE
-                                                      IdFerreteria = ?`, [req.body.IdFerreteria]);
-      if (req.body.IdCliente != 0){
-        const [Cliente] = await connection.query(`SELECT 
-                                                      cli.Consecutivo,
-                                                      cli.Tipo,
-                                                      cli.NitCC,
-                                                      cli.Nombre,
-                                                      cli.Apellido,
-                                                      cli.Telefono1,
-                                                      cli.Telefono2,
-                                                      cli.Correo,
-                                                      cli.Direccion,
-                                                      cli.Dv,
-                                                      cli.ResFiscal
-                                                    FROM
-                                                      clientes AS cli
-                                                    WHERE
-                                                      Consecutivo = ?`, [req.body.IdCliente]);
-        console.log("cliente: ", Cliente)
-        Customer = {
-          TipoPersona: Cliente[0].Tipo == 0 ? 2 : 1,
-          NombreTipoPersona: Cliente[0].Tipo ? 'Persona Natural' : 'Persona Jurídica',
-          TipoDocumento: Cliente[0].Tipo === 0 ? 13 : 31,
-          NombreTipoDocumento: Cliente[0].Tipo === 0 ? 'Cédula de ciudadanía ': 'NIT',
-          Documento: Cliente[0].NitCC.split('-')[0],
-          Dv: Cliente[0].Dv,
-          NombreComercial: Cliente[0].Nombre + ' ' + Cliente[0].Apellido,
-          RazonSocial: Cliente[0].Nombre + ' ' + Cliente[0].Apellido,
-          Telefono: Cliente[0].Telefono1,
-          Correo: Cliente[0].Correo,
-          Departamento: {
-            Codigo: 11,
-            Nombre: "Bogota"
-          },
-          Ciudad: {
-            Codigo: 11001,
-            Nombre: "Bogota, DC."
-          },
-          Direccion: Cliente[0].Direccion,
-          ResponsabilidadFiscal: Cliente[0].ResFiscal,
-          DetallesTributario: {
-            Codigo: "01",
-            Nombre: "IVA"
-          }
-        }
-      }
-                                                  
-      for (let product of req.body.Orden) {
-        if (product.CantidadSa - product.CantidadEn !== 0) {
-          const detProduct = {
-            CodigoInterno: product.ConsecutivoProd,
-            Nombre: product.Descripcion,
-            Cantidad: product.CantidadSa - product.CantidadEn,
-            PrecioUnitario: product.VrUnitario,
-            Total: (product.CantidadSa - product.CantidadEn) * product.VrUnitario,
-            Regalo: "false",
-            DescuentoYRecargos: [],
-            Impuestos: {
-              IVA: {
-                Codigo: "01",
-                Total: (product.CantidadSa - product.CantidadEn) * product.VrUnitario,
-                porcentajes: [
-                  {
-                    porcentaje: product.Iva,
-                    Base: ((product.CantidadSa - product.CantidadEn) * product.VrUnitario) * (1/(1+product.Iva/100)),
-                    Total: (product.CantidadSa - product.CantidadEn) * product.VrUnitario
-                  }
-                ]
-              }
-            }
-          }
-          const porcentaje = {
-            porcentaje: product.Iva,
-            Base: ((product.CantidadSa - product.CantidadEn) * product.VrUnitario) * (1/(1+product.Iva/100)),
-            Total: (product.CantidadSa - product.CantidadEn) * product.VrUnitario
-          }
-          articulos.push(detProduct);
-          porcentajes.push(porcentaje);
-          total += (product.CantidadSa - product.CantidadEn) * product.VrUnitario
-          Bruto += ((product.CantidadSa - product.CantidadEn) * product.VrUnitario) * (1/(1 + product.Iva/100))
-          ImpuestosValue += ((product.CantidadSa - product.CantidadEn) * product.VrUnitario) * (product.Iva/100)
-          CantidadProductos += 1
-        }
-      }
-      const ElectronicData = {
-        Ambiente: ambiente,
-        Referencia: {
-          NumeroResolucion: req.body.Resolucion,
-          Factura: req.body.Prefijo + req.body.FacturaElectronica,
-          Cufe: req.body.Cufe,
-          Fecha: req.body.FechaActual.split(' ')[0],
-          Hora: req.body.FechaActual.split(' ')[1],
-          Prefijo: req.body.Prefijo,
-          Tipo_Reclamo: req.body.Tipo_Reclamo,
-          Descripcion_Reclamo: req.body.Descripcion_Reclamo
-        },
-        Factura: req.body.Prefijo + req.body.FacturaElectronica,
-        Fecha: req.body.FechaActual.split(' ')[0],
-        Hora: req.body.FechaActual.split(' ')[1],
-        Observacion: "Observacion",
-        FormaDePago: "1",
-        MedioDePago: 10,
-        FechaVencimiento: req.body.FechaActual.split(' ')[0],
-        CantidadArticulos: CantidadProductos,
-        Cliente: Customer,
-        Articulos: articulos,
-        Impuestos: {
-            IVA: {
-              Codigo: "01",
-              Total: total,
-              porcentajes: porcentajes
-            }
-        },
-        Totales: {
-          Bruto: Bruto,
-          BaseImpuestos: Bruto,
-          Descuentos: 0,
-          Cargos: 0,
-          APagar: total,
-          Impuestos: ImpuestosValue
-        },
-      }
-      console.log("ElectronicData: ", JSON.stringify(ElectronicData))
-      //Para la factura electronica
-      const resFElectronica = await fetch(`${logInColtek[0].Api}/api/v1/facturacion/credito/send?debug=true&type=00`,{
-        method: 'POST',
-        headers: { Accept: 'application/json',
-                           'Content-Type': 'application/json',
-                           'Authorization': `Bearer ${req.body.tokenColtek}`},
-        body: JSON.stringify(ElectronicData)
-      })
-      const responceElectronicData = await resFElectronica.json()
-      console.log("Respuesta Electronica: ", responceElectronicData)
-      //Start the transaction
-
-    }
-    const toMoneyFlow = `INSERT INTO flujodedinero (ConsecutivoCV,
-                                                    IdFerreteria,
-                                                    Fecha,
-                                                    Referencia,
-                                                    Efectivo,
-                                                    Transferencia,
-                                                    Motivo,
-                                                    Comentarios,
-                                                    TipoDeFlujo,
-                                                    Activo)
-                                        VALUES (?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?)`
-
-    const valoresMoneyFlow = [req.body.Consecutivo,
-                              req.body.IdFerreteria,
-                              req.body.FechaActual,
-                              '',
-                              req.body.Efectivo,
-                              0,
-                              'Devolución mercancia',
-                              '',
-                              true,
-                              true]
-    await connection.query(toMoneyFlow, valoresMoneyFlow);
-    
-    const returnProducts = `INSERT INTO
-                              entradas (CodInterno,
-                                        IdFerreteria,
-                                        ConsecutivoProd,
-                                        Cantidad,
-                                        Cod,
-                                        Descripcion,
-                                        PCosto,
-                                        PCostoLP,
-                                        Fecha,
-                                        Iva,
-                                        CodResponsable,
-                                        Responsable,
-                                        Motivo,
-                                        ConsecutivoCompra,
-                                        Medida,
-                                        UMedida)
-                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    for (let product of req.body.Orden) {
-      if (product.CantidadSa - product.CantidadEn !== 0) {
-        const valoresEntradas = [0,
-                                req.body.IdFerreteria,
-                                product.ConsecutivoProd,
-                                product.CantidadSa - product.CantidadEn,
-                                product.Cod,
-                                product.Descripcion,
-                                product.VrCosto,
-                                0,
-                                req.body.FechaActual,
-                                product.Iva,
-                                req.body.IdFerreteria,
-                                req.body.Responsable,
-                                'Devolución mercancia',
-                                req.body.Consecutivo,
-                                product.Medida,
-                                product.UMedida]
-        await connection.query(returnProducts, valoresEntradas);
-      }
-    }
-    
-    res.status(200).json({ message: 'Transacción completada con éxito' });
-  } catch (error) {
-    console.error("Error en la función CancelTheSale: ", error);
-    res.status(500).json(error);
-  } finally {
-    // Close the connection
-    await connection.end();
-  }
-}
-
 export const getCRDetail = async (req, res) => {
   const connection = await connectDBSivarPos();
   try {
@@ -3331,9 +3046,7 @@ export const getBestProducts = async (req, res) => {
   }
 }
 
-
-
-//Other functions
+//*Other functions
 export const bestRoute = async (req, res) => {
   const connection = await connect();
   try {
@@ -3402,7 +3115,6 @@ export const bestRoute = async (req, res) => {
     let googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}`;
     let noSpacesStr = googleMapsUrl.replace(/\s+/g, '');
 
-    console.log("Google Maps URL: ", noSpacesStr);
     res.status(200).json({ clientes, noSpacesStr });
   } catch (error) {
     console.log(error);
@@ -3635,7 +3347,6 @@ export const getDataLoginColtek = async (req, res) => {
                                                                 Usuario,
                                                                 Clave
                                                         FROM resoluciones WHERE IdFerreteria = ?`, [decoded.userId]);
-      console.log('ConnectionColtek: ', JSON.stringify(ConnectionColtek))
       return res.status(200).json(ConnectionColtek)
     }
   } catch (error) {
