@@ -214,7 +214,7 @@ export const ProductDataWeb = async(req, res) => {
                                                         JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
-                                                            sa.CodCliente = ?
+                                                            sa.CodCliente = ? AND p.Cod <> '1'
                                                         GROUP BY p.Cod
                                                 
                                                         UNION ALL
@@ -249,7 +249,7 @@ export const ProductDataWeb = async(req, res) => {
                                                         JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
-                                                            sa.CodCliente <> ?
+                                                            sa.CodCliente <> ? AND p.Cod <> '1'
                                                         GROUP BY p.Cod
                                                     ) AS CombinedResults
                                                 )
@@ -2380,7 +2380,7 @@ export const putNewSale = async (req, res) => {
               "Factura": Resolucion[0].Prefijo + UfacturaRows[0].UFactura,
               "Fecha": req.body.RCData.Fecha.split(' ')[0],
               "Hora": req.body.RCData.Fecha.split(' ')[1],
-              "Observacion": "Observacion",
+              "Observacion": req.body.RCData.Comentarios,
               "FormaDePago": "1", //Es 1 para contado y 2 para credito
               "MedioDePago": req.body.MedioDePagoColtek,
               "FechaVencimiento": req.body.RCData.Fecha.split(' ')[0],
@@ -2680,7 +2680,8 @@ export const getSalesPerDay = async (req, res) => {
                                                   cv.Cufe,
                                                   cv.Resolucion,
                                                   flu.Efectivo,
-                                                  flu.Transferencia
+                                                  flu.Transferencia,
+                                                  flu.Comentarios
                                               FROM
                                                   cabeceraventas AS cv
                                               LEFT JOIN
