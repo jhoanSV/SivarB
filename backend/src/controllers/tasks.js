@@ -18,7 +18,8 @@ export const getTasks = async(req, res) => {
                                                 p.PVenta,
                                                 p.Agotado,
                                                 p.Nota,
-                                                p.Detalle
+                                                p.Detalle,
+                                                p.ImgName
                                               FROM
                                                 productos AS p
                                               JOIN
@@ -193,6 +194,7 @@ export const ProductDataWeb = async(req, res) => {
                                                             p.Iva,
                                                             p.Agotado,
                                                             p.Detalle,
+                                                            p.ImgName,
                                                             (
                                                                 0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) +
                                                                 0.5 * (
@@ -228,6 +230,7 @@ export const ProductDataWeb = async(req, res) => {
                                                             p.Iva,
                                                             p.Agotado,
                                                             p.Detalle,
+                                                            p.ImgName,
                                                             (
                                                                 0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) +
                                                                 0.5 * (
@@ -262,6 +265,7 @@ export const ProductDataWeb = async(req, res) => {
                                                     Iva,
                                                     Agotado,
                                                     Detalle,
+                                                    ImgName,
                                                     Score
                                                 FROM
                                                     RankedResults
@@ -438,6 +442,7 @@ export const BottonCaroucel = async(req, res) => {
                                                       p.Iva,
                                                       p.Agotado,
                                                       p.Detalle,
+                                                      p.ImgName,
                                                       (0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) + 0.5 * COUNT(sa.Codigo) / 6 + 0.2 * IFNULL(SUM(sa.Cantidad * (sa.VrUnitario - sa.Costo)), 0)) / 1000 AS Score,
                                                       ROW_NUMBER() OVER (PARTITION BY c.Categoria ORDER BY (((0.3 * IFNULL((p.PVenta-p.PCosto)/p.PVenta *100,0) + 0.5 * COUNT(sa.Codigo)/6 + 0.2 * IFNULL(SUM(sa.Cantidad*(sa.VrUnitario-sa.Costo)),0))/1000)) DESC) AS row_num
                                                   FROM
@@ -467,6 +472,7 @@ export const BottonCaroucel = async(req, res) => {
                                                   Iva,
                                                   Agotado,
                                                   Detalle,
+                                                  ImgName,
                                                   Score
                                                 FROM
                                                   ranked_products
@@ -486,6 +492,7 @@ export const BottonCaroucel = async(req, res) => {
                                               p.Iva,
                                               p.Agotado,
                                               p.Detalle,
+                                              p.ImgName,
                                               (0.3 * IFNULL((p.PVenta-p.PCosto)/p.PVenta *100,0) + 0.5 * COUNT(sa.Codigo)/6 + 0.2 * IFNULL(SUM(sa.Cantidad*(sa.VrUnitario-sa.Costo)),0))/1000 AS Score,
                                               ROW_NUMBER() OVER (PARTITION BY (SELECT Categoria FROM categoria WHERE IDCategoria = sub.IDCategoria) ORDER BY ((0.3 * IFNULL((p.PVenta-p.PCosto)/p.PVenta *100,0) + 0.5 * COUNT(sa.Codigo)/6 + 0.2 * IFNULL(SUM(sa.Cantidad*(sa.VrUnitario-sa.Costo)),0))/1000) DESC) AS row_num
                                               FROM 
@@ -508,6 +515,7 @@ export const BottonCaroucel = async(req, res) => {
                                                 Iva,
                                                 Agotado,
                                                 Detalle,
+                                                ImgName,
                                                 Score
                                             FROM
                                                 ranked_products
@@ -3047,6 +3055,26 @@ export const getBestProducts = async (req, res) => {
   }
 }
 
+
+export const getCategriesPages = async (req, res ) => {
+  const connectSivar = await connect()
+  try {
+    const [categories] = await connectSivar.query(`SELECT
+                                                    cat.IDCategoria,
+                                                    cat.Categoria,
+                                                    cat.Pag
+                                                  FROM
+                                                    categoria AS cat
+                                                  WHERE
+                                                    cat.Pag <> ''`)
+    res.status(200).json(categories)
+  } catch (error) {
+    console.error("Error en la función getCategriesPages: ", error);
+    res.status(500).json(error);
+  } finally {
+    await connectSivar.end();
+  }
+}
 //*Other functions
 export const bestRoute = async (req, res) => {
   const connection = await connect();

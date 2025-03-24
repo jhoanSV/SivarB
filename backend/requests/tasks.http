@@ -64,6 +64,9 @@ GET {{api}}tasks/PedidosEnviados/9
 GET {{api}}/DetallePedidoVendedor/7500
 
 ###
+GET {{api}}tasks/CategriesPages
+
+###
 POST  {{api}}/productsdataweb
 Content-Type: application/json
 

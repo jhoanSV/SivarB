@@ -51,7 +51,8 @@ import { getTasks,
         getDataLoginColtek,
         getClientOcupation,
         postToRemsionToElectronic,
-        getSubClases} from '../controllers/tasks';
+        getSubClases,
+        getCategriesPages} from '../controllers/tasks';
 
 
 const router = Router();
@@ -122,6 +123,8 @@ router.get('/tasks/DetallePedidoEntregas/:cod', DetallePedidoEntregas)
 router.post('/tasks/ActualizarProcesoDelPedido', ActualizarProcesoDelPedido)
 
 router.get('/tasks/DetallePedidoCerrado/:cod', DetallePedidoCerrado)
+
+router.get('/tasks/CategriesPages', getCategriesPages)
 
 
 //Routes for the webpage
