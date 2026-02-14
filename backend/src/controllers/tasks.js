@@ -581,13 +581,13 @@ export const SendSale = async (req, res) => {
         // Split the entry by commas to get individual elements
         const [quantity, cod, price] = entry.split(',');
         // Construct the SQL statement for each entry
-        return `SELECT '${NDePedido}', '${quantity}', '${cod}', '${price}', PCosto FROM productos WHERE cod = '${cod}'`;
+        return `SELECT '${NDePedido}', '${quantity}', '${cod}', '${price}', PCosto, '0', '0' FROM productos WHERE cod = '${cod}'`;
     });
 
     // Join the formatted entries with UNION ALL
     const finalQuery = formattedEntries.join('\nUNION ALL\n');
     // Insert ingresados
-    await connection.query(`INSERT INTO tabladeingresados (NDePedido, Cantidad, Codigo, VrUnitario, Costo) ${finalQuery}`);
+    await connection.query(`INSERT INTO tabladeingresados (NDePedido, Cantidad, Codigo, VrUnitario, Costo, Porcentaje, APartirDe) ${finalQuery}`);
     // Close the connection
     connection.end();
 
@@ -899,6 +899,7 @@ export const getProductList = async (req, res) => {
                                                         pro.Clase,
                                                         cla.Nombre AS NombreClase,
                                                         pro.Detalle,
+                                                        pro.ImgName,
                                                         CAST(COALESCE(en.entradas, 0) - COALESCE(sa.salidas, 0) AS DOUBLE) AS Inventario,
                                                         CASE 
                                                             WHEN EXISTS (
