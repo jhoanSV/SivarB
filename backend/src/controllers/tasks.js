@@ -195,6 +195,7 @@ export const ProductDataWeb = async(req, res) => {
                                                             p.Agotado,
                                                             p.Detalle,
                                                             p.ImgName,
+                                                            p.Grupo,
                                                             (
                                                                 0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) +
                                                                 0.5 * (
@@ -206,15 +207,19 @@ export const ProductDataWeb = async(req, res) => {
                                                                     SUM(CASE 
                                                                         WHEN DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.Codigo IS NOT NULL AND sa.CodCliente = ? THEN sa.Cantidad * (sa.VrUnitario - sa.Costo) 
                                                                     END), 0)
-                                                            ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente = ? AND NDePedido <> '0') AS Score
-                                                        FROM 
+                                                            ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente = ? AND NDePedido <> '0') AS Score,
+                                                            IFNULL(des.Porcentaje,0) AS Porcentaje,
+                                                            IFNULL(des.APartirDe,0) AS APartirDe
+                                                        FROM
                                                             productos AS p
-                                                        JOIN
+                                                        LEFT JOIN
                                                             salidas AS sa ON p.Cod = sa.Codigo
-                                                        JOIN
+                                                        LEFT JOIN
                                                             subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
-                                                        JOIN
+                                                        LEFT JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
+                                                        LEFT JOIN
+                                                            descuentos AS des ON des.Cod = p.Cod
                                                         WHERE
                                                             sa.CodCliente = ? AND p.Cod <> '1'
                                                         GROUP BY p.Cod
@@ -231,6 +236,7 @@ export const ProductDataWeb = async(req, res) => {
                                                             p.Agotado,
                                                             p.Detalle,
                                                             p.ImgName,
+                                                            p.Grupo,
                                                             (
                                                                 0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) +
                                                                 0.5 * (
@@ -242,15 +248,19 @@ export const ProductDataWeb = async(req, res) => {
                                                                     SUM(CASE 
                                                                         WHEN DATE_FORMAT(sa.FechaDeIngreso, '%Y-%m') >= DATE_FORMAT(NOW() - INTERVAL 6 MONTH, '%Y-%m') AND sa.Codigo IS NOT NULL AND sa.CodCliente <> ? THEN sa.Cantidad * (sa.VrUnitario - sa.Costo) 
                                                                     END), 0)
-                                                            ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente <> ? AND NDePedido <> '0') AS Score
-                                                        FROM 
+                                                            ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente <> ? AND NDePedido <> '0') AS Score,
+                                                            IFNULL(des.Porcentaje,0) AS Porcentaje,
+                                                            IFNULL(des.APartirDe,0) AS APartirDe
+                                                        FROM
                                                             productos AS p
-                                                        JOIN
+                                                        LEFT JOIN
                                                             salidas AS sa ON p.Cod = sa.Codigo
-                                                        JOIN
+                                                        LEFT JOIN
                                                             subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
-                                                        JOIN
+                                                        LEFT JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
+                                                        LEFT JOIN
+                                                            descuentos AS des ON des.Cod = p.Cod
                                                         WHERE
                                                             sa.CodCliente <> ? AND p.Cod <> '1'
                                                         GROUP BY p.Cod
@@ -266,6 +276,9 @@ export const ProductDataWeb = async(req, res) => {
                                                     Agotado,
                                                     Detalle,
                                                     ImgName,
+                                                    Grupo,
+                                                    Porcentaje,
+                                                    APartirDe,
                                                     Score
                                                 FROM
                                                     RankedResults
@@ -443,6 +456,7 @@ export const BottonCaroucel = async(req, res) => {
                                                       p.Agotado,
                                                       p.Detalle,
                                                       p.ImgName,
+                                                      p.Grupo,
                                                       (0.3 * IFNULL((p.PVenta - p.PCosto) / p.PVenta * 100, 0) + 0.5 * COUNT(sa.Codigo) / 6 + 0.2 * IFNULL(SUM(sa.Cantidad * (sa.VrUnitario - sa.Costo)), 0)) / 1000 AS Score,
                                                       ROW_NUMBER() OVER (PARTITION BY c.Categoria ORDER BY (((0.3 * IFNULL((p.PVenta-p.PCosto)/p.PVenta *100,0) + 0.5 * COUNT(sa.Codigo)/6 + 0.2 * IFNULL(SUM(sa.Cantidad*(sa.VrUnitario-sa.Costo)),0))/1000)) DESC) AS row_num
                                                   FROM
@@ -473,6 +487,7 @@ export const BottonCaroucel = async(req, res) => {
                                                   Agotado,
                                                   Detalle,
                                                   ImgName,
+                                                  Grupo,
                                                   Score
                                                 FROM
                                                   ranked_products
@@ -493,6 +508,7 @@ export const BottonCaroucel = async(req, res) => {
                                               p.Agotado,
                                               p.Detalle,
                                               p.ImgName,
+                                              p.Grupo,
                                               (0.3 * IFNULL((p.PVenta-p.PCosto)/p.PVenta *100,0) + 0.5 * COUNT(sa.Codigo)/6 + 0.2 * IFNULL(SUM(sa.Cantidad*(sa.VrUnitario-sa.Costo)),0))/1000 AS Score,
                                               ROW_NUMBER() OVER (PARTITION BY (SELECT Categoria FROM categoria WHERE IDCategoria = sub.IDCategoria) ORDER BY ((0.3 * IFNULL((p.PVenta-p.PCosto)/p.PVenta *100,0) + 0.5 * COUNT(sa.Codigo)/6 + 0.2 * IFNULL(SUM(sa.Cantidad*(sa.VrUnitario-sa.Costo)),0))/1000) DESC) AS row_num
                                               FROM 
@@ -532,32 +548,44 @@ export const BottonCaroucel = async(req, res) => {
 };
 
 export const SendSale = async (req, res) => {
+  const connection = await connect();
   try {
     const { TIngresados } = req.body;
-    const connection = await connect();
-
+    await connection.beginTransaction();
     // Insert new estado
     const [rows] = await connection.query(
-      `INSERT INTO tabladeestados (SELECT MAX(te.NDePedido) + 1,
-                                          ?,
-                                          ?,
-                                          'Contado',
-                                          'Ingresado',
-                                          ?,
-                                          ?,
-                                          '',
-                                          cli.CodVendedor,
-                                          cli.Iva,
-                                          ?,
-                                          '',
-                                          ?,
-                                          '',
-                                          ?
-                                          FROM
-                                            tabladeestados AS te
-                                          JOIN
-                                            clientes as cli
-                                          ON cli.Cod = ?)`,
+      `INSERT INTO tabladeestados (CodCliente,
+                                   FechaFactura,
+                                   TipoDePago,
+                                   Estado,
+                                   FechaDeEstado,
+                                   FechaDeEntrega,
+                                   ProcesoDelPedido,
+                                   CodColaborador,
+                                   TieneIva,
+                                   FechaVencimiento,
+                                   Repartidor,
+                                   NotaVenta,
+                                   NotaEntrega,
+                                   VECommerce)
+                  SELECT
+                        ?,
+                        ?,
+                        'Contado',
+                        'Ingresado',
+                        ?,
+                        ?,
+                        '',
+                        cli.CodVendedor,
+                        cli.Iva,
+                        ?,
+                        '',
+                        ?,
+                        '',
+                        ?
+                      FROM
+                        clientes AS cli
+                      WHERE cli.Cod = ?`,
       [req.body.CodCliente,
        req.body.FechaFactura,
        req.body.FechaDeEstado,
@@ -570,32 +598,62 @@ export const SendSale = async (req, res) => {
     );
 
     // Get the new NDePedido
-    const [NDePedidoRows] = await connection.query("SELECT MAX(NDePedido) AS NDePedido FROM tabladeestados");
-    const NDePedido = NDePedidoRows[0].NDePedido;
+    const NDePedido = rows.insertId
 
-    // Split the input string by semicolon to get individual entries
-    const entries = TIngresados.split(';');
+    const codes = req.body.TIngresados.map(e => e.Cod);
+    const [costRows] = await connection.query(
+      `SELECT cod, PCosto FROM productos WHERE cod IN (?)`,
+      [codes]
+    );
 
-    // Iterate through each entry and construct the SQL statement
-    const formattedEntries = entries.map(entry => {
-        // Split the entry by commas to get individual elements
-        const [quantity, cod, price] = entry.split(',');
-        // Construct the SQL statement for each entry
-        return `SELECT '${NDePedido}', '${quantity}', '${cod}', '${price}', PCosto, '0', '0' FROM productos WHERE cod = '${cod}'`;
-    });
+    const costMap = Object.fromEntries(
+      costRows.map(r => [r.cod, r.PCosto])
+    );
 
-    // Join the formatted entries with UNION ALL
-    const finalQuery = formattedEntries.join('\nUNION ALL\n');
-    // Insert ingresados
-    await connection.query(`INSERT INTO tabladeingresados (NDePedido, Cantidad, Codigo, VrUnitario, Costo, Porcentaje, APartirDe) ${finalQuery}`);
-    // Close the connection
-    connection.end();
-
-    res.json({ success: true, NDePedido: NDePedido});
+    // Preparar insert masivo
+    const finalInsertValues = req.body.TIngresados.map(item => [
+      NDePedido,
+      item.Cant,
+      item.Cod,
+      item.PVenta,
+      costMap[item.Cod],
+      item.Porcentaje || 0,
+      item.APartirDe || 0
+    ]);
+    
+    // --- Step 4: Perform the single, secure INSERT ---
+    const placeholders = finalInsertValues.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
+    await connection.query(
+        `INSERT INTO tabladeingresados (NDePedido, Cantidad, Codigo, VrUnitario, Costo, Porcentaje, APartirDe) VALUES ${placeholders}`,
+        finalInsertValues.flat()
+    );
+    await connection.commit();
+    res.status(200).json({ success: true, NDePedido: NDePedido});
   } catch (error) {
+    await connection.rollback();
     console.log(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  } finally {
+    await connection.end();
   }
+};
+
+export const GetCoordinatesPages = async(req, res) => {
+    /*Return list of alias of the products*/
+    try {
+        const connection = await connect()
+        const [rows] = await connection.query(`SELECT
+                                                cp.Cod,
+                                                cp.Pag,
+                                                cp.xPosition,
+                                                cp.yPosition
+                                              FROM
+                                                CoordinatesPages AS cp`);
+        res.json(rows)
+        connection.end()
+    } catch (error) {
+        console.log(error)
+    }
 };
 
 //!to the sivar pos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

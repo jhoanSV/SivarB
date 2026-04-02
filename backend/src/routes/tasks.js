@@ -52,7 +52,8 @@ import { getTasks,
         getClientOcupation,
         postToRemsionToElectronic,
         getSubClases,
-        getCategriesPages} from '../controllers/tasks';
+        getCategriesPages,
+        GetCoordinatesPages} from '../controllers/tasks';
 
 
 const router = Router();
@@ -142,7 +143,7 @@ router.post('/tasks/SendSale', SendSale)
 
 router.post('/tasks/bestroute', bestRoute)
 
-
+router.get('/tasks/GetCoordinatesPages', GetCoordinatesPages)
 
 
 
