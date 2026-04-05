@@ -3056,7 +3056,6 @@ export const getBestProducts = async (req, res) => {
   }
 }
 
-
 export const getCategriesPages = async (req, res ) => {
   const connectSivar = await connect()
   try {
