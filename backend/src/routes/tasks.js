@@ -127,7 +127,6 @@ router.get('/tasks/DetallePedidoCerrado/:cod', DetallePedidoCerrado)
 
 router.get('/tasks/CategriesPages', getCategriesPages)
 
-
 //Routes for the webpage
 router.post('/tasks/login', checkLogInData)
 
@@ -200,7 +199,7 @@ router.post('/pos/newmoneyflow', putNewMoneyFlow);
 
 router.post('/pos/removeflow', updateRemoveFlow);
 
-router.post('/pos/newoutput', putNewOutput)
+router.post('/pos/newoutput', putNewOutput);
 
 router.post('/pos/crdetail', getCRDetail);
 
