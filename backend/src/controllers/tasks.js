@@ -246,13 +246,13 @@ export const ProductDataWeb = async(req, res) => {
                                                         FROM 
                                                             productos AS p
                                                         JOIN
-                                                            salidas AS sa ON p.Cod = sa.Codigo
+                                                            salidas AS sa ON p.Cod = sa.Codigo AND sa.CodCliente <> ?
                                                         JOIN
                                                             subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
                                                         JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
-                                                            sa.CodCliente <> ? AND p.Cod <> '1'
+                                                            p.Cod <> '1'
                                                         GROUP BY p.Cod
                                                     ) AS CombinedResults
                                                 )
