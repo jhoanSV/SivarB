@@ -209,11 +209,11 @@ export const ProductDataWeb = async(req, res) => {
                                                             ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente = ? AND NDePedido <> '0') AS Score
                                                         FROM 
                                                             productos AS p
-                                                        JOIN
+                                                        LEFT JOIN
                                                             salidas AS sa ON p.Cod = sa.Codigo
-                                                        JOIN
+                                                        LEFT JOIN
                                                             subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
-                                                        JOIN
+                                                        LEFT JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
                                                             sa.CodCliente = ? AND p.Cod <> '1'
@@ -245,11 +245,11 @@ export const ProductDataWeb = async(req, res) => {
                                                             ) / (SELECT COUNT(Codigo) FROM salidas WHERE CodCliente <> ? AND NDePedido <> '0') AS Score
                                                         FROM 
                                                             productos AS p
-                                                        JOIN
+                                                        LEFT JOIN
                                                             salidas AS sa ON p.Cod = sa.Codigo AND sa.CodCliente <> ?
-                                                        JOIN
+                                                        LEFT JOIN
                                                             subcategorias AS sub ON p.subcategoria = sub.IDSubCategoria
-                                                        JOIN
+                                                        LEFT JOIN
                                                             categoria AS c ON sub.IDCategoria = c.IDCategoria
                                                         WHERE
                                                             p.Cod <> '1'
