@@ -6,6 +6,8 @@ services:
     build: .
     ports:
       - "3000:3000"
+    env_file:
+      - .env # Docker lee el archivo pero NO lo copia dentro de la imagen
     volumes:
       - .:/app
       - /app/node_modules

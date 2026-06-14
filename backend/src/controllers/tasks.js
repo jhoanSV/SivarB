@@ -640,6 +640,7 @@ export const SendSale = async (req, res) => {
 
 export const GetCoordinatesPages = async(req, res) => {
     /*Return list of alias of the products*/
+    console.log('entro a GetCoordinatesPages')
     try {
         const connection = await connect()
         const [rows] = await connection.query(`SELECT
