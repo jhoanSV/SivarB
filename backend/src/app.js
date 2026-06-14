@@ -3,7 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUI from 'swagger-ui-express';
-import { options } from './SwaggerOptions';
+import { options } from './swaggerOptions';
 
 
 const specs = swaggerJSDoc(options)
