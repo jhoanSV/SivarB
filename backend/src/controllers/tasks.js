@@ -551,10 +551,20 @@ export const SendSale = async (req, res) => {
   const connection = await connect();
   try {
     const { TIngresados } = req.body;
+
+    const [NDePedidoN] = await connection.query(
+        `SELECT IFNULL(MAX(NDePedido), 0) + 1 AS NDePedido FROM tabladeestados`
+    );
+
+    // Get the new NDePedido
+    const NDePedido = NDePedidoN[0].NDePedido
+
     await connection.beginTransaction();
     // Insert new estado
     const [rows] = await connection.query(
-      `INSERT INTO tabladeestados (CodCliente,
+      `INSERT INTO tabladeestados (
+                                   NDePedido,
+                                   CodCliente,
                                    FechaFactura,
                                    TipoDePago,
                                    Estado,
@@ -569,6 +579,7 @@ export const SendSale = async (req, res) => {
                                    NotaEntrega,
                                    VECommerce)
                   SELECT
+                        ?,      
                         ?,
                         ?,
                         'Contado',
@@ -586,7 +597,8 @@ export const SendSale = async (req, res) => {
                       FROM
                         clientes AS cli
                       WHERE cli.Cod = ?`,
-      [req.body.CodCliente,
+      [NDePedido,
+       req.body.CodCliente,
        req.body.FechaFactura,
        req.body.FechaDeEstado,
        req.body.FechaDeEntrega,
@@ -597,8 +609,7 @@ export const SendSale = async (req, res) => {
       ]
     );
 
-    // Get the new NDePedido
-    const NDePedido = rows.insertId
+    
 
     const codes = req.body.TIngresados.map(e => e.Cod);
     const [costRows] = await connection.query(
